@@ -1,10 +1,23 @@
 {{define "modals/inboundModal"}}
-<a-modal id="inbound-modal" v-model="inModal.visible" :title="inModal.title" :dialog-style="{ top: '20px' }"
+<a-modal id="inbound-modal" v-model="inModal.visible" :dialog-style="{ top: '20px' }"
     @ok="inModal.ok" :confirm-loading="inModal.confirmLoading" :closable="true" :mask-closable="false"
     :class="themeSwitcher.currentTheme" :ok-text="inModal.okText" cancel-text='{{ i18n "close" }}'>
+    <template slot="title">
+        <div :style="{ display: 'flex', alignItems: 'center', gap: '8px' }">
+            <a-button type="primary" size="small" @click="inModal.ok">[[ inModal.okText ]]</a-button>
+            <span>[[ inModal.title ]]</span>
+        </div>
+    </template>
     {{template "form/inbound"}}
 </a-modal>
 <script>
+
+    const INBOUND_TRAFFIC_EXPIRY_MAP = new Map([
+        [50, 1],
+        [150, 3],
+        [300, 6],
+        [600, 12],
+    ]);
 
     // Make inModal globally available to ensure it works with any base path
     const inModal = window.inModal = {
@@ -93,6 +106,9 @@
         data: {
             inModal: inModal,
             delayedStart: false,
+            singlePortMultiUser: false,
+            storedInboundTotalGB: null,
+            storedInboundExpiryTime: null,
             get inbound() {
                 return inModal.inbound;
             },
@@ -104,6 +120,12 @@
             },
             get client() {
                 return inModal.inbound && inModal.inbound.clients && inModal.inbound.clients.length > 0 ? inModal.inbound.clients[0] : null;
+            },
+            get clientTotalGB() {
+                return this.client ? this.client._totalGB : null;
+            },
+            get clientExpiryTime() {
+                return this.client ? this.client._expiryTime : null;
             },
             get datepicker() {
                 return app.datepicker;
@@ -131,6 +153,51 @@
             }
         },
         watch: {
+            'inModal.visible'(isVisible) {
+                if (!isVisible) return;
+                if (this.isEdit) return;
+                this.singlePortMultiUser = false;
+                this.storedInboundTotalGB = null;
+                this.storedInboundExpiryTime = null;
+                this.applyInboundDefaults();
+            },
+            singlePortMultiUser(newVal, oldVal) {
+                if (this.isEdit) return;
+                if (newVal === oldVal) return;
+                if (newVal) {
+                    if (this.storedInboundTotalGB === null) {
+                        this.storedInboundTotalGB = this.dbInbound.totalGB;
+                        this.storedInboundExpiryTime = this.dbInbound._expiryTime;
+                    }
+                    this.dbInbound.totalGB = 0;
+                    this.dbInbound._expiryTime = null;
+                    this.applyClientDefaultsOn();
+                } else {
+                    if (this.storedInboundTotalGB !== null) {
+                        this.dbInbound.totalGB = this.storedInboundTotalGB;
+                        this.dbInbound._expiryTime = this.storedInboundExpiryTime;
+                    }
+                    this.applyClientDefaultsOff();
+                }
+            },
+            'inModal.inbound.port'() {
+                this.applyClientEmailDefault();
+            },
+            'inModal.dbInbound.totalGB'(newVal) {
+                if (this.singlePortMultiUser) return;
+                this.applyTrafficExpiryRule(newVal);
+            },
+            'inModal.dbInbound._expiryTime'() {
+                this.applyClientEmailDefault();
+            },
+            clientTotalGB(newVal) {
+                if (this.isEdit) return;
+                if (!this.singlePortMultiUser) return;
+                this.applyClientExpiryRule(newVal);
+            },
+            clientExpiryTime() {
+                this.applyClientEmailDefault();
+            },
             'inModal.inbound.stream.security'(newVal, oldVal) {
                 // Clear flow when security changes from reality/tls to none
                 if (inModal.inbound.protocol == Protocols.VLESS && !inModal.inbound.canEnableTlsFlow()) {
@@ -153,6 +220,81 @@
             }
         },
         methods: {
+            getTrafficExpiryMonths(totalGB) {
+                const normalized = Number(totalGB);
+                if (!Number.isFinite(normalized)) return null;
+                return INBOUND_TRAFFIC_EXPIRY_MAP.get(normalized) ?? null;
+            },
+            applyTrafficExpiryRule(totalGB) {
+                const months = this.getTrafficExpiryMonths(totalGB);
+                if (!months || typeof moment === 'undefined') return;
+                this.dbInbound._expiryTime = moment().add(months, 'months');
+            },
+            getPrimaryClient() {
+                const clients = this.inbound ? this.inbound.clients : null;
+                if (!clients || !Array.isArray(clients) || clients.length === 0) return null;
+                return clients[0];
+            },
+            getHostPrefix() {
+                const host = (window.location && window.location.hostname) ? window.location.hostname : '';
+                if (!host) return 'HOST';
+                return host.split('.')[0].split(':')[0].toUpperCase();
+            },
+            getExpiryLabel(expiryTime) {
+                if (!expiryTime) return '0.0';
+                if (typeof moment !== 'undefined' && moment.isMoment(expiryTime)) {
+                    return `${expiryTime.month() + 1}.${expiryTime.date()}`;
+                }
+                const dateValue = typeof expiryTime === 'number' ? expiryTime : new Date(expiryTime).getTime();
+                if (!Number.isFinite(dateValue)) return '0.0';
+                const date = new Date(dateValue);
+                return `${date.getMonth() + 1}.${date.getDate()}`;
+            },
+            applyClientExpiryRule(totalGB) {
+                if (this.isEdit) return;
+                const client = this.getPrimaryClient();
+                if (!client) return;
+                const months = this.getTrafficExpiryMonths(totalGB);
+                if (!months || typeof moment === 'undefined') return;
+                client._expiryTime = moment().add(months, 'months');
+                this.applyClientEmailDefault();
+            },
+            applyClientEmailDefault() {
+                if (this.isEdit) return;
+                const client = this.getPrimaryClient();
+                if (!client) return;
+                const prefix = this.getHostPrefix();
+                const port = this.inbound ? this.inbound.port : '';
+                const expirySource = this.singlePortMultiUser ? client._expiryTime : this.dbInbound._expiryTime;
+                const expiryLabel = this.getExpiryLabel(expirySource);
+                client.email = `${prefix}:${port}-${expiryLabel}`;
+            },
+            applyClientDefaultsOn() {
+                const client = this.getPrimaryClient();
+                if (!client) return;
+                client._totalGB = 50;
+                this.applyClientExpiryRule(50);
+            },
+            applyClientDefaultsOff() {
+                const client = this.getPrimaryClient();
+                if (!client) return;
+                client._totalGB = 0;
+                client._expiryTime = null;
+                this.applyClientEmailDefault();
+            },
+            applyInboundDefaults() {
+                this.dbInbound.totalGB = 50;
+                this.applyTrafficExpiryRule(50);
+                this.applyClientDefaultsOff();
+                if (this.inbound && this.inbound.canEnableReality && this.inbound.canEnableReality()) {
+                    this.inbound.stream.security = 'reality';
+                    this.$nextTick(() => {
+                        if (this.inbound.stream.security === 'reality') {
+                            this.getNewX25519Cert();
+                        }
+                    });
+                }
+            },
             streamNetworkChange() {
                 if (!inModal.inbound.canEnableTls()) {
                     this.inModal.inbound.stream.security = 'none';

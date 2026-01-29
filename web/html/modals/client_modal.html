@@ -10,6 +10,13 @@
 </a-modal>
 <script>
 
+    const CLIENT_TRAFFIC_EXPIRY_MAP = new Map([
+        [50, 1],
+        [150, 3],
+        [300, 6],
+        [600, 12],
+    ]);
+
     const clientModal = {
         visible: false,
         confirmLoading: false,
@@ -88,6 +95,15 @@
             get client() {
                 return this.clientModal.clients[this.clientModal.index];
             },
+            get clientTotalGB() {
+                return this.client ? this.client._totalGB : null;
+            },
+            get clientExpiryTime() {
+                return this.client ? this.client._expiryTime : null;
+            },
+            get isSinglePortMultiUser() {
+                return this.clientModal.dbInbound && this.clientModal.dbInbound.total === 0 && this.clientModal.dbInbound.expiryTime === 0;
+            },
             get clientStats() {
                 return this.clientModal.clientStats;
             },
@@ -119,7 +135,72 @@
                 this.client.expiryTime = -86400000 * days;
             },
         },
+        watch: {
+            'clientModal.visible'(isVisible) {
+                if (!isVisible) return;
+                if (this.isEdit) return;
+                this.applyClientDefaults();
+            },
+            'clientModal.inbound.port'() {
+                this.applyClientEmailDefault();
+            },
+            clientTotalGB(newVal) {
+                if (this.isEdit) return;
+                if (!this.isSinglePortMultiUser) return;
+                this.applyClientExpiryRule(newVal);
+            },
+            clientExpiryTime() {
+                this.applyClientEmailDefault();
+            },
+        },
         methods: {
+            getTrafficExpiryMonths(totalGB) {
+                const normalized = Number(totalGB);
+                if (!Number.isFinite(normalized)) return null;
+                return CLIENT_TRAFFIC_EXPIRY_MAP.get(normalized) ?? null;
+            },
+            getHostPrefix() {
+                const host = (window.location && window.location.hostname) ? window.location.hostname : '';
+                if (!host) return 'HOST';
+                return host.split('.')[0].split(':')[0].toUpperCase();
+            },
+            getExpiryLabel(expiryTime) {
+                if (!expiryTime) return '0.0';
+                if (typeof moment !== 'undefined' && moment.isMoment(expiryTime)) {
+                    return `${expiryTime.month() + 1}.${expiryTime.date()}`;
+                }
+                const dateValue = typeof expiryTime === 'number' ? expiryTime : new Date(expiryTime).getTime();
+                if (!Number.isFinite(dateValue)) return '0.0';
+                const date = new Date(dateValue);
+                return `${date.getMonth() + 1}.${date.getDate()}`;
+            },
+            applyClientExpiryRule(totalGB) {
+                if (this.isEdit) return;
+                const months = this.getTrafficExpiryMonths(totalGB);
+                if (!months || typeof moment === 'undefined') return;
+                this.client._expiryTime = moment().add(months, 'months');
+                this.applyClientEmailDefault();
+            },
+            applyClientEmailDefault() {
+                if (this.isEdit) return;
+                if (!this.client) return;
+                const prefix = this.getHostPrefix();
+                const port = this.inbound ? this.inbound.port : '';
+                const expirySource = this.isSinglePortMultiUser ? this.client._expiryTime : this.clientModal.dbInbound._expiryTime;
+                const expiryLabel = this.getExpiryLabel(expirySource);
+                this.client.email = `${prefix}:${port}-${expiryLabel}`;
+            },
+            applyClientDefaults() {
+                if (!this.client) return;
+                if (this.isSinglePortMultiUser) {
+                    this.client._totalGB = 50;
+                    this.applyClientExpiryRule(50);
+                } else {
+                    this.client._totalGB = 0;
+                    this.client._expiryTime = null;
+                    this.applyClientEmailDefault();
+                }
+            },
             async getDBClientIps(email) {
                 const msg = await HttpUtil.post(`/panel/api/inbounds/clientIps/${email}`);
                 if (!msg.success) {

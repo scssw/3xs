@@ -137,6 +137,9 @@
                         </a-menu-item>
                       </a-menu>
                     </a-dropdown>
+                    <a-button type="primary" icon="delete" @click="deleteExpiredItems">
+                      <template v-if="!isMobile">删除到期</template>
+                    </a-button>
                   </a-space>
                 </template>
                 <template #extra>
@@ -1362,6 +1365,43 @@
           okText: '{{ i18n "delete"}}',
           cancelText: '{{ i18n "cancel"}}',
           onOk: () => this.submit('/panel/api/inbounds/delDepletedClients/' + dbInboundId),
+        })
+      },
+      deleteExpiredItems() {
+        this.$confirm({
+          title: '删除到期',
+          content: '将删除已到期的入站端口与到期客户端，是否继续？',
+          class: themeSwitcher.currentTheme,
+          okText: '{{ i18n "delete"}}',
+          cancelText: '{{ i18n "cancel"}}',
+          onOk: async () => {
+            const now = Date.now();
+            const inboundDeletes = [];
+            const clientDeletes = [];
+            this.dbInbounds.forEach(dbInbound => {
+              if (dbInbound.expiryTime > 0 && dbInbound.expiryTime <= now) {
+                inboundDeletes.push(dbInbound.id);
+                return;
+              }
+              if (!dbInbound.isMultiUser()) return;
+              const inbound = dbInbound.toInbound();
+              const clients = inbound && inbound.clients ? inbound.clients : [];
+              clients.forEach(client => {
+                if (client.expiryTime > 0 && client.expiryTime <= now) {
+                  const clientId = this.getClientId(dbInbound.protocol, client);
+                  clientDeletes.push({ inboundId: dbInbound.id, clientId });
+                }
+              });
+            });
+
+            for (const id of inboundDeletes) {
+              await HttpUtil.post('/panel/api/inbounds/del/' + id);
+            }
+            for (const item of clientDeletes) {
+              await HttpUtil.post(`/panel/api/inbounds/${item.inboundId}/delClient/${item.clientId}`);
+            }
+            await this.getDBInbounds();
+          },
         })
       },
       isExpiry(dbInbound, index) {
