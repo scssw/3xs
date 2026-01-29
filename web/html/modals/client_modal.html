@@ -144,6 +144,16 @@
             'clientModal.inbound.port'() {
                 this.applyClientEmailDefault();
             },
+            'clientModal.dbInbound.totalGB'() {
+                if (this.isEdit) return;
+                if (this.isSinglePortMultiUser) return;
+                this.applyClientDefaults();
+            },
+            'clientModal.dbInbound._expiryTime'() {
+                if (this.isEdit) return;
+                if (this.isSinglePortMultiUser) return;
+                this.applyClientDefaults();
+            },
             clientTotalGB(newVal) {
                 if (this.isEdit) return;
                 if (!this.isSinglePortMultiUser) return;
@@ -196,8 +206,9 @@
                     this.client._totalGB = 50;
                     this.applyClientExpiryRule(50);
                 } else {
-                    this.client._totalGB = 0;
-                    this.client._expiryTime = null;
+                    const inboundTotal = Number.isFinite(this.clientModal.dbInbound.totalGB) ? this.clientModal.dbInbound.totalGB : 0;
+                    this.client._totalGB = inboundTotal;
+                    this.client._expiryTime = this.clientModal.dbInbound._expiryTime || null;
                     this.applyClientEmailDefault();
                 }
             },
