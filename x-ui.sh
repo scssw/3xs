@@ -1,4 +1,4 @@
-﻿#!/bin/bash
+#!/bin/bash
 
 red='\033[0;31m'
 green='\033[0;32m'
@@ -103,128 +103,8 @@ confirm_restart() {
 }
 
 before_show_menu() {
-    echo -e "
-========================================
-${green}3X-UI 面板管理脚本${plain}
-${green}0.${plain} 退出脚本
-----------------------------------------
-${green}1.${plain} 安装
-${green}2.${plain} 更新
-${green}3.${plain} 更新菜单
-${green}4.${plain} 旧版本
-${green}5.${plain} 卸载
-----------------------------------------
-${green}6.${plain} 重置用户名与密码
-${green}7.${plain} 重置 Web Base Path
-${green}8.${plain} 重置设置
-${green}9.${plain} 修改端口
-${green}10.${plain} 查看当前设置
-----------------------------------------
-${green}11.${plain} 启动
-${green}12.${plain} 停止
-${green}13.${plain} 重启
-${green}14.${plain} 查看状态
-${green}15.${plain} 日志管理
-----------------------------------------
-${green}16.${plain} 启用开机自启
-${green}17.${plain} 禁用开机自启
-----------------------------------------
-${green}18.${plain} SSL 证书管理
-${green}19.${plain} Cloudflare SSL 证书
-${green}20.${plain} IP 限制管理
-${green}21.${plain} 防火墙管理
-${green}22.${plain} SSH 端口转发管理
-----------------------------------------
-${green}23.${plain} 启用 BBR
-${green}24.${plain} 更新 Geo 文件
-${green}25.${plain} Ookla 速度测试
-========================================"
-    show_status
-    echo && read -rp "请输入你的选择 [0-25]: " num
-
-    case "${num}" in
-    0)
-        exit 0
-        ;;
-    1)
-        check_uninstall && install
-        ;;
-    2)
-        check_install && update
-        ;;
-    3)
-        check_install && update_menu
-        ;;
-    4)
-        check_install && legacy_version
-        ;;
-    5)
-        check_install && uninstall
-        ;;
-    6)
-        check_install && reset_user
-        ;;
-    7)
-        check_install && reset_webbasepath
-        ;;
-    8)
-        check_install && reset_config
-        ;;
-    9)
-        check_install && set_port
-        ;;
-    10)
-        check_install && check_config
-        ;;
-    11)
-        check_install && start
-        ;;
-    12)
-        check_install && stop
-        ;;
-    13)
-        check_install && restart
-        ;;
-    14)
-        check_install && status
-        ;;
-    15)
-        check_install && show_log
-        ;;
-    16)
-        check_install && enable
-        ;;
-    17)
-        check_install && disable
-        ;;
-    18)
-        ssl_cert_issue_main
-        ;;
-    19)
-        ssl_cert_issue_CF
-        ;;
-    20)
-        iplimit_main
-        ;;
-    21)
-        firewall_menu
-        ;;
-    22)
-        SSH_port_forwarding
-        ;;
-    23)
-        bbr_menu
-        ;;
-    24)
-        update_geo
-        ;;
-    25)
-        run_speedtest
-        ;;
-    *)
-        LOGE "请输入正确的编号 [0-25]"
-        ;;
-    esac
+    echo && echo -n -e "${yellow}按回车返回主菜单: ${plain}" && read -r temp
+    show_menu
 }
 
 install() {
@@ -255,8 +135,8 @@ update() {
 }
 
 update_menu() {
-    echo -e "${yellow}姝ｅ湪鏇存柊鑿滃崟${plain}"
-    confirm "姝ゅ姛鑳藉皢鎶婅彍鍗曟洿鏂板埌鏈€鏂扮増鏈紝鏄惁缁х画锛? "y"
+    echo -e "${yellow}Updating Menu${plain}"
+    confirm "This function will update the menu to the latest changes." "y"
     if [[ $? != 0 ]]; then
         LOGE "Cancelled"
         if [[ $# == 0 ]]; then
@@ -273,7 +153,7 @@ update_menu() {
         echo -e "${green}Update successful. The panel has automatically restarted.${plain}"
         exit 0
     else
-        echo -e "${red}鏇存柊鑿滃崟澶辫触銆?{plain}"
+        echo -e "${red}Failed to update the menu.${plain}"
         return 1
     fi
 }
@@ -425,7 +305,7 @@ check_config() {
             echo -e "${green}Access URL: https://${server_ip}:${existing_port}${existing_webBasePath}${plain}"
         fi
     else
-        echo -e "${red}鈿?WARNING: No SSL certificate configured!${plain}"
+        echo -e "${red}⚠ WARNING: No SSL certificate configured!${plain}"
         echo -e "${yellow}You can get a Let's Encrypt certificate for your IP address (valid ~6 days, auto-renews).${plain}"
         read -rp "Generate SSL certificate for IP now? [y/N]: " gen_ssl
         if [[ "$gen_ssl" == "y" || "$gen_ssl" == "Y" ]]; then
@@ -575,9 +455,9 @@ disable() {
 
 show_log() {
     if [[ $release == "alpine" ]]; then
-        echo -e "${green}\t1.${plain} Debug Log"
-        echo -e "${green}\t0.${plain} Back to Main Menu"
-        read -rp "Choose an option: " choice
+        echo -e "${green}\t1.${plain} 调试日志"
+        echo -e "${green}\t0.${plain} 返回主菜单"
+        read -rp "请选择一个选项: " choice
 
         case "$choice" in
         0)
@@ -590,15 +470,15 @@ show_log() {
             fi
             ;;
         *)
-            echo -e "${red}Invalid option. Please select a valid number.${plain}\n"
+            echo -e "${red}选项无效，请输入有效编号。${plain}\n"
             show_log
             ;;
         esac
     else
-        echo -e "${green}\t1.${plain} Debug Log"
-        echo -e "${green}\t2.${plain} Clear All logs"
-        echo -e "${green}\t0.${plain} Back to Main Menu"
-        read -rp "Choose an option: " choice
+        echo -e "${green}\t1.${plain} 调试日志"
+        echo -e "${green}\t2.${plain} 清空所有日志"
+        echo -e "${green}\t0.${plain} 返回主菜单"
+        read -rp "请选择一个选项: " choice
 
         case "$choice" in
         0)
@@ -617,7 +497,7 @@ show_log() {
             restart
             ;;
         *)
-            echo -e "${red}Invalid option. Please select a valid number.${plain}\n"
+            echo -e "${red}选项无效，请输入有效编号。${plain}\n"
             show_log
             ;;
         esac
@@ -625,10 +505,10 @@ show_log() {
 }
 
 bbr_menu() {
-    echo -e "${green}\t1.${plain} Enable BBR"
-    echo -e "${green}\t2.${plain} Disable BBR"
-    echo -e "${green}\t0.${plain} Back to Main Menu"
-    read -rp "Choose an option: " choice
+    echo -e "${green}\t1.${plain} 启用 BBR"
+    echo -e "${green}\t2.${plain} 禁用 BBR"
+    echo -e "${green}\t0.${plain} 返回主菜单"
+    read -rp "请选择一个选项: " choice
     case "$choice" in
     0)
         show_menu
@@ -642,7 +522,7 @@ bbr_menu() {
         bbr_menu
         ;;
     *)
-        echo -e "${red}Invalid option. Please select a valid number.${plain}\n"
+        echo -e "${red}选项无效，请输入有效编号。${plain}\n"
         bbr_menu
         ;;
     esac
@@ -840,15 +720,15 @@ show_xray_status() {
 }
 
 firewall_menu() {
-    echo -e "${green}\t1.${plain} ${green}Install${plain} Firewall"
-    echo -e "${green}\t2.${plain} Port List [numbered]"
-    echo -e "${green}\t3.${plain} ${green}Open${plain} Ports"
-    echo -e "${green}\t4.${plain} ${red}Delete${plain} Ports from List"
-    echo -e "${green}\t5.${plain} ${green}Enable${plain} Firewall"
-    echo -e "${green}\t6.${plain} ${red}Disable${plain} Firewall"
-    echo -e "${green}\t7.${plain} Firewall Status"
-    echo -e "${green}\t0.${plain} Back to Main Menu"
-    read -rp "Choose an option: " choice
+    echo -e "${green}\t1.${plain} ${green}安装${plain} 防火墙"
+    echo -e "${green}\t2.${plain} 端口列表（编号）"
+    echo -e "${green}\t3.${plain} ${green}开放${plain} 端口"
+    echo -e "${green}\t4.${plain} ${red}从列表删除${plain} 端口"
+    echo -e "${green}\t5.${plain} ${green}启用${plain} 防火墙"
+    echo -e "${green}\t6.${plain} ${red}禁用${plain} 防火墙"
+    echo -e "${green}\t7.${plain} 防火墙状态"
+    echo -e "${green}\t0.${plain} 返回主菜单"
+    read -rp "请选择一个选项: " choice
     case "$choice" in
     0)
         show_menu
@@ -882,7 +762,7 @@ firewall_menu() {
         firewall_menu
         ;;
     *)
-        echo -e "${red}Invalid option. Please select a valid number.${plain}\n"
+        echo -e "${red}选项无效，请输入有效编号。${plain}\n"
         firewall_menu
         ;;
     esac
@@ -1054,9 +934,9 @@ update_geo() {
     echo -e "${green}\t1.${plain} Loyalsoldier (geoip.dat, geosite.dat)"
     echo -e "${green}\t2.${plain} chocolate4u (geoip_IR.dat, geosite_IR.dat)"
     echo -e "${green}\t3.${plain} runetfreedom (geoip_RU.dat, geosite_RU.dat)"
-    echo -e "${green}\t4.${plain} All"
-    echo -e "${green}\t0.${plain} Back to Main Menu"
-    read -rp "Choose an option: " choice
+    echo -e "${green}\t4.${plain} 全部"
+    echo -e "${green}\t0.${plain} 返回主菜单"
+    read -rp "请选择一个选项: " choice
 
     case "$choice" in
     0)
@@ -1083,7 +963,7 @@ update_geo() {
         restart
         ;;
     *)
-        echo -e "${red}Invalid option. Please select a valid number.${plain}\n"
+        echo -e "${red}选项无效，请输入有效编号。${plain}\n"
         update_geo
         ;;
     esac
@@ -1113,15 +993,15 @@ install_acme() {
 }
 
 ssl_cert_issue_main() {
-    echo -e "${green}\t1.${plain} Get SSL (Domain)"
-    echo -e "${green}\t2.${plain} Revoke"
-    echo -e "${green}\t3.${plain} Force Renew"
-    echo -e "${green}\t4.${plain} Show Existing Domains"
-    echo -e "${green}\t5.${plain} Set Cert paths for the panel"
-    echo -e "${green}\t6.${plain} Get SSL for IP Address (6-day cert, auto-renews)"
-    echo -e "${green}\t0.${plain} Back to Main Menu"
+    echo -e "${green}\t1.${plain} 获取 SSL（域名）"
+    echo -e "${green}\t2.${plain} 撤销"
+    echo -e "${green}\t3.${plain} 强制续期"
+    echo -e "${green}\t4.${plain} 显示已存在的域名"
+    echo -e "${green}\t5.${plain} 设置面板证书路径"
+    echo -e "${green}\t6.${plain} 获取 IP SSL 证书（6 天证书，自动续期）"
+    echo -e "${green}\t0.${plain} 返回主菜单"
 
-    read -rp "Choose an option: " choice
+    read -rp "请选择一个选项: " choice
     case "$choice" in
     0)
         show_menu
@@ -1225,7 +1105,7 @@ ssl_cert_issue_main() {
         ;;
 
     *)
-        echo -e "${red}Invalid option. Please select a valid number.${plain}\n"
+        echo -e "${red}选项无效，请输入有效编号。${plain}\n"
         ssl_cert_issue_main
         ;;
     esac
@@ -1527,10 +1407,10 @@ ssl_cert_issue() {
     LOGI "This command will run on every certificate issue and renew."
     read -rp "Would you like to modify --reloadcmd for ACME? (y/n): " setReloadcmd
     if [[ "$setReloadcmd" == "y" || "$setReloadcmd" == "Y" ]]; then
-        echo -e "\n${green}\t1.${plain} Preset: systemctl reload nginx ; x-ui restart"
-        echo -e "${green}\t2.${plain} Input your own command"
-        echo -e "${green}\t0.${plain} Keep default reloadcmd"
-        read -rp "Choose an option: " choice
+        echo -e "\n${green}\t1.${plain} 预设: systemctl reload nginx ; x-ui restart"
+        echo -e "${green}\t2.${plain} 输入自定义命令"
+        echo -e "${green}\t0.${plain} 保持默认 reloadcmd"
+        read -rp "请选择一个选项: " choice
         case "$choice" in
         1)
             LOGI "Reloadcmd is: systemctl reload nginx ; x-ui restart"
@@ -1674,10 +1554,10 @@ ssl_cert_issue_CF() {
         LOGI "This command will run on every certificate issue and renew."
         read -rp "Would you like to modify --reloadcmd for ACME? (y/n): " setReloadcmd
         if [[ "$setReloadcmd" == "y" || "$setReloadcmd" == "Y" ]]; then
-            echo -e "\n${green}\t1.${plain} Preset: systemctl reload nginx ; x-ui restart"
-            echo -e "${green}\t2.${plain} Input your own command"
-            echo -e "${green}\t0.${plain} Keep default reloadcmd"
-            read -rp "Choose an option: " choice
+        echo -e "\n${green}\t1.${plain} 预设: systemctl reload nginx ; x-ui restart"
+        echo -e "${green}\t2.${plain} 输入自定义命令"
+        echo -e "${green}\t0.${plain} 保持默认 reloadcmd"
+        read -rp "请选择一个选项: " choice
             case "$choice" in
             1)
                 LOGI "Reloadcmd is: systemctl reload nginx ; x-ui restart"
@@ -1789,18 +1669,18 @@ ip_validation() {
 }
 
 iplimit_main() {
-    echo -e "\n${green}\t1.${plain} Install Fail2ban and configure IP Limit"
-    echo -e "${green}\t2.${plain} Change Ban Duration"
-    echo -e "${green}\t3.${plain} Unban Everyone"
-    echo -e "${green}\t4.${plain} Ban Logs"
-    echo -e "${green}\t5.${plain} Ban an IP Address"
-    echo -e "${green}\t6.${plain} Unban an IP Address"
-    echo -e "${green}\t7.${plain} Real-Time Logs"
-    echo -e "${green}\t8.${plain} Service Status"
-    echo -e "${green}\t9.${plain} Service Restart"
-    echo -e "${green}\t10.${plain} Uninstall Fail2ban and IP Limit"
-    echo -e "${green}\t0.${plain} Back to Main Menu"
-    read -rp "Choose an option: " choice
+    echo -e "\n${green}\t1.${plain} 安装 Fail2ban 并配置 IP 限制"
+    echo -e "${green}\t2.${plain} 修改封禁时长"
+    echo -e "${green}\t3.${plain} 全部解封"
+    echo -e "${green}\t4.${plain} 封禁日志"
+    echo -e "${green}\t5.${plain} 封禁 IP"
+    echo -e "${green}\t6.${plain} 解封 IP"
+    echo -e "${green}\t7.${plain} 实时日志"
+    echo -e "${green}\t8.${plain} 服务状态"
+    echo -e "${green}\t9.${plain} 服务重启"
+    echo -e "${green}\t10.${plain} 卸载 Fail2ban 和 IP 限制"
+    echo -e "${green}\t0.${plain} 返回主菜单"
+    read -rp "请选择一个选项: " choice
     case "$choice" in
     0)
         show_menu
@@ -1886,7 +1766,7 @@ iplimit_main() {
         iplimit_main
         ;;
     *)
-        echo -e "${red}Invalid option. Please select a valid number.${plain}\n"
+        echo -e "${red}选项无效，请输入有效编号。${plain}\n"
         iplimit_main
         ;;
     esac
@@ -1990,10 +1870,10 @@ install_iplimit() {
 }
 
 remove_iplimit() {
-    echo -e "${green}\t1.${plain} Only remove IP Limit configurations"
-    echo -e "${green}\t2.${plain} Uninstall Fail2ban and IP Limit"
-    echo -e "${green}\t0.${plain} Back to Main Menu"
-    read -rp "Choose an option: " num
+    echo -e "${green}\t1.${plain} 仅移除 IP 限制配置"
+    echo -e "${green}\t2.${plain} 卸载 Fail2ban 和 IP 限制"
+    echo -e "${green}\t0.${plain} 返回主菜单"
+    read -rp "请选择一个选项: " num
     case "$num" in
     1)
         rm -f /etc/fail2ban/filter.d/3x-ipl.conf
@@ -2051,7 +1931,7 @@ remove_iplimit() {
         show_menu
         ;;
     *)
-        echo -e "${red}Invalid option. Please select a valid number.${plain}\n"
+        echo -e "${red}选项无效，请输入有效编号。${plain}\n"
         remove_iplimit
         ;;
     esac
@@ -2215,19 +2095,19 @@ SSH_port_forwarding() {
         echo -e "${yellow}http://localhost:2222${existing_webBasePath}${plain}"
     fi
 
-    echo -e "\nChoose an option:"
-    echo -e "${green}1.${plain} Set listen IP"
-    echo -e "${green}2.${plain} Clear listen IP"
-    echo -e "${green}0.${plain} Back to Main Menu"
-    read -rp "Choose an option: " num
+    echo -e "\n请选择一个选项:"
+    echo -e "${green}1.${plain} 设置监听 IP"
+    echo -e "${green}2.${plain} 清除监听 IP"
+    echo -e "${green}0.${plain} 返回主菜单"
+    read -rp "请选择一个选项: " num
 
     case "$num" in
     1)
         if [[ -z "$existing_listenIP" || "$existing_listenIP" == "0.0.0.0" ]]; then
-            echo -e "\nNo listenIP configured. Choose an option:"
-            echo -e "1. Use default IP (127.0.0.1)"
-            echo -e "2. Set a custom IP"
-            read -rp "Select an option (1 or 2): " listen_choice
+            echo -e "\n未配置 listenIP。请选择一个选项:"
+            echo -e "1. 使用默认 IP (127.0.0.1)"
+            echo -e "2. 设置自定义 IP"
+            read -rp "请选择一个选项（1 或 2）: " listen_choice
 
             config_listenIP="127.0.0.1"
             [[ "$listen_choice" == "2" ]] && read -rp "Enter custom IP to listen on: " config_listenIP
@@ -2256,73 +2136,74 @@ SSH_port_forwarding() {
         show_menu
         ;;
     *)
-        echo -e "${red}Invalid option. Please select a valid number.${plain}\n"
+        echo -e "${red}选项无效，请输入有效编号。${plain}\n"
         SSH_port_forwarding
         ;;
     esac
 }
 
 show_usage() {
-    echo -e "
-========================================
-${blue}x-ui 管理命令用法（子命令）:${plain}
-  ${blue}x-ui${plain}                       - 管理脚本菜单
-  ${blue}x-ui start${plain}                 - 启动
-  ${blue}x-ui stop${plain}                  - 停止
-  ${blue}x-ui restart${plain}               - 重启
-  ${blue}x-ui status${plain}                - 当前状态
-  ${blue}x-ui settings${plain}              - 当前设置
-  ${blue}x-ui enable${plain}                - 启用开机自启
-  ${blue}x-ui disable${plain}               - 禁用开机自启
-  ${blue}x-ui log${plain}                   - 查看日志
-  ${blue}x-ui banlog${plain}                - 查看 Fail2ban 封禁日志
-  ${blue}x-ui update${plain}                - 更新
-  ${blue}x-ui update-all-geofiles${plain}   - 更新所有 Geo 文件
-  ${blue}x-ui legacy${plain}                - 旧版本
-  ${blue}x-ui install${plain}               - 安装
-  ${blue}x-ui uninstall${plain}             - 卸载
-========================================"
+    echo -e "┌────────────────────────────────────────────────────────────────┐
+│  ${blue}x-ui 控制菜单用法（子命令）:${plain}                          │
+│                                                                │
+│  ${blue}x-ui${plain}                       - 管理脚本                         │
+│  ${blue}x-ui start${plain}                 - 启动                             │
+│  ${blue}x-ui stop${plain}                  - 停止                             │
+│  ${blue}x-ui restart${plain}               - 重启                             │
+│  ${blue}x-ui status${plain}                - 当前状态                         │
+│  ${blue}x-ui settings${plain}              - 当前设置                         │
+│  ${blue}x-ui enable${plain}                - 开机启动时启用自启动             │
+│  ${blue}x-ui disable${plain}               - 开机启动时禁用自启动             │
+│  ${blue}x-ui log${plain}                   - 查看日志                         │
+│  ${blue}x-ui banlog${plain}                - 查看 Fail2ban 封禁日志           │
+│  ${blue}x-ui update${plain}                - 更新                             │
+│  ${blue}x-ui update-all-geofiles${plain}   - 更新所有 Geo 文件               │
+│  ${blue}x-ui legacy${plain}                - 旧版本                           │
+│  ${blue}x-ui install${plain}               - 安装                             │
+│  ${blue}x-ui uninstall${plain}             - 卸载                             │
+└────────────────────────────────────────────────────────────────┘"
 }
 
 show_menu() {
     echo -e "
-========================================
-${green}3X-UI 面板管理脚本${plain}
-${green}0.${plain} 退出脚本
-----------------------------------------
-${green}1.${plain} 安装
-${green}2.${plain} 更新
-${green}3.${plain} 更新菜单
-${green}4.${plain} 旧版本
-${green}5.${plain} 卸载
-----------------------------------------
-${green}6.${plain} 重置用户名与密码
-${green}7.${plain} 重置 Web Base Path
-${green}8.${plain} 重置设置
-${green}9.${plain} 修改端口
-${green}10.${plain} 查看当前设置
-----------------------------------------
-${green}11.${plain} 启动
-${green}12.${plain} 停止
-${green}13.${plain} 重启
-${green}14.${plain} 查看状态
-${green}15.${plain} 日志管理
-----------------------------------------
-${green}16.${plain} 启用开机自启
-${green}17.${plain} 禁用开机自启
-----------------------------------------
-${green}18.${plain} SSL 证书管理
-${green}19.${plain} Cloudflare SSL 证书
-${green}20.${plain} IP 限制管理
-${green}21.${plain} 防火墙管理
-${green}22.${plain} SSH 端口转发管理
-----------------------------------------
-${green}23.${plain} 启用 BBR
-${green}24.${plain} 更新 Geo 文件
-${green}25.${plain} Ookla 速度测试
-========================================"
+╔────────────────────────────────────────────────╗
+│   ${green}3X-UI 面板管理脚本${plain}                           │
+│   ${green}0.${plain} 退出脚本                                  │
+│────────────────────────────────────────────────│
+│   ${green}1.${plain} 安装                                      │
+│   ${green}2.${plain} 更新                                      │
+│   ${green}3.${plain} 更新菜单                                  │
+│   ${green}4.${plain} 旧版本                                    │
+│   ${green}5.${plain} 卸载                                      │
+│────────────────────────────────────────────────│
+│   ${green}6.${plain} 重置用户名和密码                           │
+│   ${green}7.${plain} 重置 Web 基础路径                          │
+│   ${green}8.${plain} 重置设置                                  │
+│   ${green}9.${plain} 修改端口                                  │
+│  ${green}10.${plain} 查看当前设置                              │
+│────────────────────────────────────────────────│
+│  ${green}11.${plain} 启动                                      │
+│  ${green}12.${plain} 停止                                      │
+│  ${green}13.${plain} 重启                                      │
+│  ${green}14.${plain} 查看状态                                  │
+│  ${green}15.${plain} 日志管理                                  │
+│────────────────────────────────────────────────│
+│  ${green}16.${plain} 启用开机自启                              │
+│  ${green}17.${plain} 禁用开机自启                              │
+│────────────────────────────────────────────────│
+│  ${green}18.${plain} SSL 证书管理                              │
+│  ${green}19.${plain} Cloudflare SSL 证书                       │
+│  ${green}20.${plain} IP 限制管理                               │
+│  ${green}21.${plain} 防火墙管理                                │
+│  ${green}22.${plain} SSH 端口转发管理                          │
+│────────────────────────────────────────────────│
+│  ${green}23.${plain} 启用 BBR                                  │
+│  ${green}24.${plain} 更新 Geo 文件                             │
+│  ${green}25.${plain} Ookla 速度测试                            │
+╚────────────────────────────────────────────────╝
+"
     show_status
-    echo && read -rp "请输入你的选择 [0-25]: " num
+    echo && read -rp "请输入选项 [0-25]: " num
 
     case "${num}" in
     0)
