@@ -1,4 +1,4 @@
-#!/bin/bash
+﻿#!/bin/bash
 
 red='\033[0;31m'
 green='\033[0;32m'
@@ -103,8 +103,128 @@ confirm_restart() {
 }
 
 before_show_menu() {
-    echo && echo -n -e "${yellow}Press enter to return to the main menu: ${plain}" && read -r temp
-    show_menu
+    echo -e "
+========================================
+${green}3X-UI 面板管理脚本${plain}
+${green}0.${plain} 退出脚本
+----------------------------------------
+${green}1.${plain} 安装
+${green}2.${plain} 更新
+${green}3.${plain} 更新菜单
+${green}4.${plain} 旧版本
+${green}5.${plain} 卸载
+----------------------------------------
+${green}6.${plain} 重置用户名与密码
+${green}7.${plain} 重置 Web Base Path
+${green}8.${plain} 重置设置
+${green}9.${plain} 修改端口
+${green}10.${plain} 查看当前设置
+----------------------------------------
+${green}11.${plain} 启动
+${green}12.${plain} 停止
+${green}13.${plain} 重启
+${green}14.${plain} 查看状态
+${green}15.${plain} 日志管理
+----------------------------------------
+${green}16.${plain} 启用开机自启
+${green}17.${plain} 禁用开机自启
+----------------------------------------
+${green}18.${plain} SSL 证书管理
+${green}19.${plain} Cloudflare SSL 证书
+${green}20.${plain} IP 限制管理
+${green}21.${plain} 防火墙管理
+${green}22.${plain} SSH 端口转发管理
+----------------------------------------
+${green}23.${plain} 启用 BBR
+${green}24.${plain} 更新 Geo 文件
+${green}25.${plain} Ookla 速度测试
+========================================"
+    show_status
+    echo && read -rp "请输入你的选择 [0-25]: " num
+
+    case "${num}" in
+    0)
+        exit 0
+        ;;
+    1)
+        check_uninstall && install
+        ;;
+    2)
+        check_install && update
+        ;;
+    3)
+        check_install && update_menu
+        ;;
+    4)
+        check_install && legacy_version
+        ;;
+    5)
+        check_install && uninstall
+        ;;
+    6)
+        check_install && reset_user
+        ;;
+    7)
+        check_install && reset_webbasepath
+        ;;
+    8)
+        check_install && reset_config
+        ;;
+    9)
+        check_install && set_port
+        ;;
+    10)
+        check_install && check_config
+        ;;
+    11)
+        check_install && start
+        ;;
+    12)
+        check_install && stop
+        ;;
+    13)
+        check_install && restart
+        ;;
+    14)
+        check_install && status
+        ;;
+    15)
+        check_install && show_log
+        ;;
+    16)
+        check_install && enable
+        ;;
+    17)
+        check_install && disable
+        ;;
+    18)
+        ssl_cert_issue_main
+        ;;
+    19)
+        ssl_cert_issue_CF
+        ;;
+    20)
+        iplimit_main
+        ;;
+    21)
+        firewall_menu
+        ;;
+    22)
+        SSH_port_forwarding
+        ;;
+    23)
+        bbr_menu
+        ;;
+    24)
+        update_geo
+        ;;
+    25)
+        run_speedtest
+        ;;
+    *)
+        LOGE "请输入正确的编号 [0-25]"
+        ;;
+    esac
 }
 
 install() {
@@ -135,8 +255,8 @@ update() {
 }
 
 update_menu() {
-    echo -e "${yellow}Updating Menu${plain}"
-    confirm "This function will update the menu to the latest changes." "y"
+    echo -e "${yellow}姝ｅ湪鏇存柊鑿滃崟${plain}"
+    confirm "姝ゅ姛鑳藉皢鎶婅彍鍗曟洿鏂板埌鏈€鏂扮増鏈紝鏄惁缁х画锛? "y"
     if [[ $? != 0 ]]; then
         LOGE "Cancelled"
         if [[ $# == 0 ]]; then
@@ -153,7 +273,7 @@ update_menu() {
         echo -e "${green}Update successful. The panel has automatically restarted.${plain}"
         exit 0
     else
-        echo -e "${red}Failed to update the menu.${plain}"
+        echo -e "${red}鏇存柊鑿滃崟澶辫触銆?{plain}"
         return 1
     fi
 }
@@ -305,7 +425,7 @@ check_config() {
             echo -e "${green}Access URL: https://${server_ip}:${existing_port}${existing_webBasePath}${plain}"
         fi
     else
-        echo -e "${red}⚠ WARNING: No SSL certificate configured!${plain}"
+        echo -e "${red}鈿?WARNING: No SSL certificate configured!${plain}"
         echo -e "${yellow}You can get a Let's Encrypt certificate for your IP address (valid ~6 days, auto-renews).${plain}"
         read -rp "Generate SSL certificate for IP now? [y/N]: " gen_ssl
         if [[ "$gen_ssl" == "y" || "$gen_ssl" == "Y" ]]; then
@@ -2143,67 +2263,66 @@ SSH_port_forwarding() {
 }
 
 show_usage() {
-    echo -e "┌────────────────────────────────────────────────────────────────┐
-│  ${blue}x-ui control menu usages (subcommands):${plain}                       │
-│                                                                │
-│  ${blue}x-ui${plain}                       - Admin Management Script          │
-│  ${blue}x-ui start${plain}                 - Start                            │
-│  ${blue}x-ui stop${plain}                  - Stop                             │
-│  ${blue}x-ui restart${plain}               - Restart                          │
-│  ${blue}x-ui status${plain}                - Current Status                   │
-│  ${blue}x-ui settings${plain}              - Current Settings                 │
-│  ${blue}x-ui enable${plain}                - Enable Autostart on OS Startup   │
-│  ${blue}x-ui disable${plain}               - Disable Autostart on OS Startup  │
-│  ${blue}x-ui log${plain}                   - Check logs                       │
-│  ${blue}x-ui banlog${plain}                - Check Fail2ban ban logs          │
-│  ${blue}x-ui update${plain}                - Update                           │
-│  ${blue}x-ui update-all-geofiles${plain}   - Update all geo files             │
-│  ${blue}x-ui legacy${plain}                - Legacy version                   │
-│  ${blue}x-ui install${plain}               - Install                          │
-│  ${blue}x-ui uninstall${plain}             - Uninstall                        │
-└────────────────────────────────────────────────────────────────┘"
+    echo -e "
+========================================
+${blue}x-ui 管理命令用法（子命令）:${plain}
+  ${blue}x-ui${plain}                       - 管理脚本菜单
+  ${blue}x-ui start${plain}                 - 启动
+  ${blue}x-ui stop${plain}                  - 停止
+  ${blue}x-ui restart${plain}               - 重启
+  ${blue}x-ui status${plain}                - 当前状态
+  ${blue}x-ui settings${plain}              - 当前设置
+  ${blue}x-ui enable${plain}                - 启用开机自启
+  ${blue}x-ui disable${plain}               - 禁用开机自启
+  ${blue}x-ui log${plain}                   - 查看日志
+  ${blue}x-ui banlog${plain}                - 查看 Fail2ban 封禁日志
+  ${blue}x-ui update${plain}                - 更新
+  ${blue}x-ui update-all-geofiles${plain}   - 更新所有 Geo 文件
+  ${blue}x-ui legacy${plain}                - 旧版本
+  ${blue}x-ui install${plain}               - 安装
+  ${blue}x-ui uninstall${plain}             - 卸载
+========================================"
 }
 
 show_menu() {
     echo -e "
-╔────────────────────────────────────────────────╗
-│   ${green}3X-UI Panel Management Script${plain}                │
-│   ${green}0.${plain} Exit Script                               │
-│────────────────────────────────────────────────│
-│   ${green}1.${plain} Install                                   │
-│   ${green}2.${plain} Update                                    │
-│   ${green}3.${plain} Update Menu                               │
-│   ${green}4.${plain} Legacy Version                            │
-│   ${green}5.${plain} Uninstall                                 │
-│────────────────────────────────────────────────│
-│   ${green}6.${plain} Reset Username & Password                 │
-│   ${green}7.${plain} Reset Web Base Path                       │
-│   ${green}8.${plain} Reset Settings                            │
-│   ${green}9.${plain} Change Port                               │
-│  ${green}10.${plain} View Current Settings                     │
-│────────────────────────────────────────────────│
-│  ${green}11.${plain} Start                                     │
-│  ${green}12.${plain} Stop                                      │
-│  ${green}13.${plain} Restart                                   │
-│  ${green}14.${plain} Check Status                              │
-│  ${green}15.${plain} Logs Management                           │
-│────────────────────────────────────────────────│
-│  ${green}16.${plain} Enable Autostart                          │
-│  ${green}17.${plain} Disable Autostart                         │
-│────────────────────────────────────────────────│
-│  ${green}18.${plain} SSL Certificate Management                │
-│  ${green}19.${plain} Cloudflare SSL Certificate                │
-│  ${green}20.${plain} IP Limit Management                       │
-│  ${green}21.${plain} Firewall Management                       │
-│  ${green}22.${plain} SSH Port Forwarding Management            │
-│────────────────────────────────────────────────│
-│  ${green}23.${plain} Enable BBR                                │
-│  ${green}24.${plain} Update Geo Files                          │
-│  ${green}25.${plain} Speedtest by Ookla                        │
-╚────────────────────────────────────────────────╝
-"
+========================================
+${green}3X-UI 面板管理脚本${plain}
+${green}0.${plain} 退出脚本
+----------------------------------------
+${green}1.${plain} 安装
+${green}2.${plain} 更新
+${green}3.${plain} 更新菜单
+${green}4.${plain} 旧版本
+${green}5.${plain} 卸载
+----------------------------------------
+${green}6.${plain} 重置用户名与密码
+${green}7.${plain} 重置 Web Base Path
+${green}8.${plain} 重置设置
+${green}9.${plain} 修改端口
+${green}10.${plain} 查看当前设置
+----------------------------------------
+${green}11.${plain} 启动
+${green}12.${plain} 停止
+${green}13.${plain} 重启
+${green}14.${plain} 查看状态
+${green}15.${plain} 日志管理
+----------------------------------------
+${green}16.${plain} 启用开机自启
+${green}17.${plain} 禁用开机自启
+----------------------------------------
+${green}18.${plain} SSL 证书管理
+${green}19.${plain} Cloudflare SSL 证书
+${green}20.${plain} IP 限制管理
+${green}21.${plain} 防火墙管理
+${green}22.${plain} SSH 端口转发管理
+----------------------------------------
+${green}23.${plain} 启用 BBR
+${green}24.${plain} 更新 Geo 文件
+${green}25.${plain} Ookla 速度测试
+========================================"
     show_status
-    echo && read -rp "Please enter your selection [0-25]: " num
+    echo && read -rp "请输入你的选择 [0-25]: " num
 
     case "${num}" in
     0)
@@ -2285,7 +2404,7 @@ show_menu() {
         run_speedtest
         ;;
     *)
-        LOGE "Please enter the correct number [0-25]"
+        LOGE "请输入正确的编号 [0-25]"
         ;;
     esac
 }
