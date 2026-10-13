@@ -553,7 +553,7 @@
       async fetchData() {
         this.loading = true;
         try {
-          const res = await axios.get(basePath + 'panel/api/clients/list');
+          const res = await axios.get('/panel/api/clients/list');
           if (res.data.success && res.data.obj) {
             this.summary = res.data.obj.summary || {};
             this.clients = res.data.obj.clients || [];
@@ -568,7 +568,7 @@
       },
       async fetchOptions() {
         try {
-          const res = await axios.get(basePath + 'panel/api/clients/options');
+          const res = await axios.get('/panel/api/clients/options');
           if (res.data.success && res.data.obj) {
             this.inboundOptions = res.data.obj || [];
           }
@@ -628,7 +628,7 @@
         this.$set(record, '_toggling', true);
         const targetState = !record.enable;
         try {
-          const res = await axios.post(basePath + `panel/api/clients/toggle/${encodeURIComponent(record.email)}`, {
+          const res = await axios.post(`/panel/api/clients/toggle/${encodeURIComponent(record.email)}`, {
             enable: targetState,
           });
           if (res.data.success) {
@@ -645,7 +645,7 @@
       },
       async resetTraffic(record) {
         try {
-          const res = await axios.post(basePath + `panel/api/clients/resetTraffic/${encodeURIComponent(record.email)}`);
+          const res = await axios.post(`/panel/api/clients/resetTraffic/${encodeURIComponent(record.email)}`);
           if (res.data.success) {
             this.$message.success('流量已重置');
             record.up = 0;
@@ -659,7 +659,7 @@
       },
       async deleteClient(record) {
         try {
-          const res = await axios.post(basePath + `panel/api/clients/del/${encodeURIComponent(record.email)}`);
+          const res = await axios.post(`/panel/api/clients/del/${encodeURIComponent(record.email)}`);
           if (res.data.success) {
             this.$message.success('客户端已删除');
             this.fetchData();
@@ -749,8 +749,8 @@
           payloadClient.expiryTime = this.formModal.expiryMoment ? this.formModal.expiryMoment.valueOf() : 0;
 
           const url = this.formModal.isEdit 
-            ? basePath + `panel/api/clients/update/${encodeURIComponent(this.formModal.oldEmail)}` 
-            : basePath + 'panel/api/clients/add';
+            ? `/panel/api/clients/update/${encodeURIComponent(this.formModal.oldEmail)}` 
+            : '/panel/api/clients/add';
 
           const res = await axios.post(url, {
             client: payloadClient,
@@ -822,7 +822,7 @@
         this.ipsModal.ips = [];
         this.ipsModal.visible = true;
         try {
-          const res = await axios.post(basePath + `panel/api/clients/ips/${encodeURIComponent(record.email)}`);
+          const res = await axios.post(`/panel/api/clients/ips/${encodeURIComponent(record.email)}`);
           if (res.data.success && res.data.obj) {
             const raw = res.data.obj;
             this.ipsModal.ips = typeof raw === 'string' ? raw.split(',').filter(Boolean) : (Array.isArray(raw) ? raw : []);
@@ -833,7 +833,7 @@
       },
       async clearClientIps() {
         try {
-          const res = await axios.post(basePath + `panel/api/clients/clearIps/${encodeURIComponent(this.ipsModal.email)}`);
+          const res = await axios.post(`/panel/api/clients/clearIps/${encodeURIComponent(this.ipsModal.email)}`);
           if (res.data.success) {
             this.$message.success('已清空 IP');
             this.ipsModal.ips = [];
