@@ -17,6 +17,7 @@ import (
 type ClientController struct {
 	clientService  service.ClientService
 	inboundService service.InboundService
+	settingService service.SettingService
 	xrayService    service.XrayService
 }
 
@@ -173,9 +174,11 @@ func (a *ClientController) list(c *gin.Context) {
 		jsonMsg(c, I18nWeb(c, "fail"), err)
 		return
 	}
+	defaultSettings, _ := a.settingService.GetDefaultSettings(c.Request.Host)
 	jsonObj(c, gin.H{
-		"summary": summary,
-		"clients": clients,
+		"summary":         summary,
+		"clients":         clients,
+		"defaultSettings": defaultSettings,
 	}, nil)
 }
 

@@ -3,32 +3,74 @@
   .client-table {
     margin-top: 16px;
   }
+  .client-info-cell {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .client-email-text {
+    cursor: pointer;
+    word-break: break-all;
+    transition: color 0.2s;
+  }
+  .client-email-text:hover {
+    color: var(--color-primary-100, #1890ff);
+  }
+  .client-comment-text {
+    font-size: 12px;
+    color: #8c8c8c;
+    margin-top: 2px;
+    word-break: break-all;
+  }
   .inbound-badge-group {
     display: flex;
     flex-wrap: wrap;
     gap: 4px;
+    align-items: center;
   }
-  .inbound-chip {
+  .inbound-tag {
+    margin: 0 !important;
     font-size: 12px;
-    padding: 1px 6px;
     border-radius: 4px;
-    font-weight: 500;
   }
   .action-btn-group {
-    display: flex;
+    display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 8px;
   }
-  .action-icon {
-    font-size: 18px;
+  .sub-btn-group {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    flex-wrap: nowrap;
+  }
+  .act-btn {
+    padding: 0 4px !important;
+    height: 24px !important;
+    line-height: 24px !important;
+    font-size: 16px !important;
+    color: inherit;
+    transition: all 0.2s;
+  }
+  .act-btn:hover {
+    color: var(--color-primary-100, #1890ff) !important;
+    transform: scale(1.15);
+  }
+  .act-btn-danger:hover {
+    color: #ff4d4f !important;
+  }
+  .sub-id-tag {
+    font-family: monospace;
     cursor: pointer;
-    transition: color 0.2s;
+    margin: 0 !important;
+    font-size: 12px;
+    border-radius: 4px;
+    transition: opacity 0.2s;
   }
-  .action-icon:hover {
-    color: var(--color-primary-100);
-  }
-  .action-icon-delete:hover {
-    color: #ff4d4f;
+  .sub-id-tag:hover {
+    opacity: 0.8;
   }
   .online-indicator {
     display: inline-block;
@@ -36,6 +78,7 @@
     height: 8px;
     border-radius: 50%;
     margin-right: 6px;
+    flex-shrink: 0;
   }
   .online-indicator.online {
     background-color: #52c41a;
@@ -44,12 +87,21 @@
   .online-indicator.offline {
     background-color: #d9d9d9;
   }
-  .traffic-bar-box {
-    min-width: 120px;
+  .traffic-cell {
+    width: 100%;
   }
   .traffic-text {
     font-size: 12px;
+    font-weight: 500;
     white-space: nowrap;
+  }
+  .traffic-subtext {
+    font-size: 11px;
+    color: #8c8c8c;
+    white-space: nowrap;
+  }
+  .expiry-cell {
+    width: 100%;
   }
   .credentials-panel {
     background: rgba(0, 0, 0, 0.02);
@@ -151,114 +203,134 @@
         <!-- Clients Table -->
         <a-card size="small" :style="{ marginTop: '12px' }">
           <a-table :columns="columns" :data-source="filteredClients" :row-key="record => record.email"
-            :pagination="pagination" :scroll="{ x: 1000 }" size="middle">
-            <!-- Status & Enable -->
+            :pagination="pagination" :scroll="{ x: 1200 }" size="middle">
+            <!-- 1. 启用 -->
             <template slot="enable" slot-scope="text, record">
-              <a-switch :checked="record.enable" @change="toggleEnable(record)" :loading="record._toggling"></a-switch>
+              <div style="display: flex; justify-content: center; align-items: center;">
+                <a-switch :checked="record.enable" @change="toggleEnable(record)" :loading="record._toggling"></a-switch>
+              </div>
             </template>
 
-            <!-- Client Email & Remark -->
+            <!-- 2. 客户端标识 -->
             <template slot="clientInfo" slot-scope="text, record">
-              <div>
-                <span class="online-indicator" :class="record.online ? 'online' : 'offline'"></span>
-                <b style="cursor: pointer;" @click="copyText(record.email)">[[ record.email ]]</b>
-                <div v-if="record.comment" style="font-size: 12px; color: #8c8c8c; margin-top: 2px;">
+              <div class="client-info-cell">
+                <div style="display: flex; align-items: center;">
+                  <span class="online-indicator" :class="record.online ? 'online' : 'offline'" :title="record.online ? '在线' : '离线'"></span>
+                  <b class="client-email-text" :title="record.email" @click="copyText(record.email)">[[ record.email ]]</b>
+                </div>
+                <div v-if="record.comment" class="client-comment-text">
                   <a-icon type="message"></a-icon> [[ record.comment ]]
                 </div>
               </div>
             </template>
 
-            <!-- Associated Inbounds -->
+            <!-- 3. 关联入站 -->
             <template slot="inbounds" slot-scope="text, record">
               <div class="inbound-badge-group">
                 <template v-if="record.inbounds && record.inbounds.length > 0">
-                  <a-tag v-for="inb in record.inbounds" :key="inb.id" :color="getProtocolColor(inb.protocol)">
-                    [[ inb.protocol.toUpperCase() ]]: [[ inb.port ]] [[ inb.remark ? ('(' + inb.remark + ')') : '' ]]
+                  <a-tag v-for="inb in record.inbounds" :key="inb.id" :color="getProtocolColor(inb.protocol)" class="inbound-tag">
+                    [[ inb.protocol.toUpperCase() ]]: [[ inb.port ]]
                   </a-tag>
                 </template>
                 <template v-else>
-                  <a-tag color="orange">未关联入站</a-tag>
+                  <a-tag color="orange" class="inbound-tag">未关联入站</a-tag>
                 </template>
               </div>
             </template>
 
-            <!-- Subscription Links -->
-            <template slot="subscription" slot-scope="text, record">
-              <a-space direction="vertical" :size="2">
-                <a-space :size="4">
-                  <a-tag color="purple" style="font-family: monospace; cursor: pointer;" @click="copyText(record.subId)">
-                    Sub: [[ record.subId ? (record.subId.substring(0, 8) + '...') : '-' ]]
-                  </a-tag>
-                  <a-tooltip title="复制节点订阅链接">
-                    <a-button type="link" size="small" icon="link" @click="copySubLink(record)"></a-button>
-                  </a-tooltip>
-                  <a-tooltip title="复制Clash配置订阅">
-                    <a-button type="link" size="small" icon="cloud-download" @click="copyClashLink(record)"></a-button>
-                  </a-tooltip>
-                  <a-tooltip title="查看二维码及链接">
-                    <a-button type="link" size="small" icon="qrcode" @click="openQrModal(record)"></a-button>
-                  </a-tooltip>
-                </a-space>
-              </a-space>
+            <!-- 4. 操作 (紧邻关联入站右侧) -->
+            <template slot="actions" slot-scope="text, record">
+              <div class="action-btn-group">
+                <a-tooltip title='{{ i18n "edit" }}'>
+                  <a-button type="link" size="small" class="act-btn" @click="openEditModal(record)">
+                    <a-icon type="edit"></a-icon>
+                  </a-button>
+                </a-tooltip>
+                <a-tooltip title='{{ i18n "pages.inbounds.resetTraffic" }}'>
+                  <a-popconfirm title="确定要重置该客户端的已用流量吗？" ok-text='{{ i18n "sure" }}' cancel-text='{{ i18n "cancel" }}'
+                    :overlay-class-name="themeSwitcher.currentTheme" @confirm="resetTraffic(record)">
+                    <a-button type="link" size="small" class="act-btn">
+                      <a-icon type="retweet"></a-icon>
+                    </a-button>
+                  </a-popconfirm>
+                </a-tooltip>
+                <a-tooltip title='{{ i18n "delete" }}'>
+                  <a-popconfirm title="确定要从所有关联入站中彻底删除此客户端吗？" ok-text='{{ i18n "sure" }}' cancel-text='{{ i18n "cancel" }}'
+                    ok-type="danger" :overlay-class-name="themeSwitcher.currentTheme" @confirm="deleteClient(record)">
+                    <a-button type="link" size="small" class="act-btn act-btn-danger">
+                      <a-icon type="delete" :style="{ color: '#ff4d4f' }"></a-icon>
+                    </a-button>
+                  </a-popconfirm>
+                </a-tooltip>
+              </div>
             </template>
 
-            <!-- Traffic Usage -->
+            <!-- 5. 订阅服务 (紧邻操作右侧) -->
+            <template slot="subscription" slot-scope="text, record">
+              <div class="sub-btn-group">
+                <a-tooltip title="点击复制 SubID">
+                  <a-tag color="purple" class="sub-id-tag" @click="copyText(record.subId)">
+                    Sub: [[ record.subId ? (record.subId.substring(0, 8) + '...') : '-' ]]
+                  </a-tag>
+                </a-tooltip>
+                <a-tooltip title="复制通用订阅链接">
+                  <a-button type="link" size="small" class="act-btn" @click="copySubLink(record)">
+                    <a-icon type="link"></a-icon>
+                  </a-button>
+                </a-tooltip>
+                <a-tooltip title="复制 Clash 订阅链接">
+                  <a-button type="link" size="small" class="act-btn" @click="copyClashLink(record)">
+                    <a-icon type="cloud-download"></a-icon>
+                  </a-button>
+                </a-tooltip>
+                <a-tooltip title="查看二维码与单节点">
+                  <a-button type="link" size="small" class="act-btn" @click="openQrModal(record)">
+                    <a-icon type="qrcode"></a-icon>
+                  </a-button>
+                </a-tooltip>
+              </div>
+            </template>
+
+            <!-- 6. 流量用量 -->
             <template slot="traffic" slot-scope="text, record">
-              <div class="traffic-bar-box">
+              <div class="traffic-cell">
                 <div class="traffic-text">
                   [[ SizeFormatter.sizeFormat(record.up + record.down) ]] / 
                   <span v-if="record.totalGB > 0">[[ record.totalGB ]] GB</span>
                   <span v-else>&infin;</span>
                 </div>
                 <a-progress :percent="getTrafficPercent(record)" :status="getTrafficStatus(record)"
-                  :stroke-color="getTrafficColor(record)" size="small" :show-info="false"></a-progress>
-                <div style="font-size: 11px; color: #8c8c8c;">
-                  ↑ [[ SizeFormatter.sizeFormat(record.up) ]] ↓ [[ SizeFormatter.sizeFormat(record.down) ]]
+                  :stroke-color="getTrafficColor(record)" size="small" :show-info="false" style="margin: 2px 0;"></a-progress>
+                <div class="traffic-subtext">
+                  &uarr; [[ SizeFormatter.sizeFormat(record.up) ]] &darr; [[ SizeFormatter.sizeFormat(record.down) ]]
                 </div>
               </div>
             </template>
 
-            <!-- Expiry Time -->
+            <!-- 7. 到期时间 -->
             <template slot="expiry" slot-scope="text, record">
-              <div>
+              <div class="expiry-cell">
                 <template v-if="record.expiryTime > 0">
-                  <div>[[ formatDate(record.expiryTime) ]]</div>
-                  <a-tag :color="getExpiryTagColor(record)">[[ getExpiryLabel(record) ]]</a-tag>
+                  <div style="font-size: 12px; font-weight: 500;">[[ formatDate(record.expiryTime) ]]</div>
+                  <div style="margin-top: 2px;">
+                    <a-tag :color="getExpiryTagColor(record)" style="margin: 0; font-size: 11px; padding: 0 4px; line-height: 18px; height: 18px;">
+                      [[ getExpiryLabel(record) ]]
+                    </a-tag>
+                  </div>
                 </template>
                 <template v-else>
-                  <a-tag color="blue">{{ i18n "indefinite" }}</a-tag>
+                  <a-tag color="blue" style="margin: 0; font-size: 11px;">{{ i18n "indefinite" }}</a-tag>
                 </template>
               </div>
             </template>
 
-            <!-- IP Limit -->
+            <!-- 8. 限制IP -->
             <template slot="limitIp" slot-scope="text, record">
-              <a-space>
-                <a-tag v-if="record.limitIp > 0" color="cyan" style="cursor: pointer;" @click="openIpsModal(record)">
+              <div style="display: flex; justify-content: center; align-items: center;">
+                <a-tag v-if="record.limitIp > 0" color="cyan" style="cursor: pointer; margin: 0;" @click="openIpsModal(record)" title="查看在线IP">
                   <a-icon type="desktop"></a-icon> [[ record.limitIp ]]
                 </a-tag>
-                <span v-else style="color: #8c8c8c;">不限</span>
-              </a-space>
-            </template>
-
-            <!-- Actions -->
-            <template slot="actions" slot-scope="text, record">
-              <div class="action-btn-group">
-                <a-tooltip title='{{ i18n "edit" }}'>
-                  <a-icon type="edit" class="action-icon" @click="openEditModal(record)"></a-icon>
-                </a-tooltip>
-                <a-tooltip title='{{ i18n "pages.inbounds.resetTraffic" }}'>
-                  <a-popconfirm title="确定要重置该客户端的已用流量吗？" ok-text='{{ i18n "sure" }}' cancel-text='{{ i18n "cancel" }}'
-                    :overlay-class-name="themeSwitcher.currentTheme" @confirm="resetTraffic(record)">
-                    <a-icon type="retweet" class="action-icon"></a-icon>
-                  </a-popconfirm>
-                </a-tooltip>
-                <a-tooltip title='{{ i18n "delete" }}'>
-                  <a-popconfirm title="确定要从所有关联入站中彻底删除此客户端吗？" ok-text='{{ i18n "sure" }}' cancel-text='{{ i18n "cancel" }}'
-                    ok-type="danger" :overlay-class-name="themeSwitcher.currentTheme" @confirm="deleteClient(record)">
-                    <a-icon type="delete" class="action-icon action-icon-delete" :style="{ color: '#ff4d4f' }"></a-icon>
-                  </a-popconfirm>
-                </a-tooltip>
+                <span v-else style="color: #8c8c8c; font-size: 12px;">不限</span>
               </div>
             </template>
           </a-table>
@@ -468,14 +540,26 @@
         },
         columns: [
           { title: '启用', key: 'enable', scopedSlots: { customRender: 'enable' }, width: 65, align: 'center' },
-          { title: '客户端标识', key: 'clientInfo', scopedSlots: { customRender: 'clientInfo' }, width: 220 },
-          { title: '关联入站', key: 'inbounds', scopedSlots: { customRender: 'inbounds' }, minWidth: 200 },
-          { title: '订阅服务', key: 'subscription', scopedSlots: { customRender: 'subscription' }, width: 190 },
-          { title: '流量用量', key: 'traffic', scopedSlots: { customRender: 'traffic' }, width: 170 },
-          { title: '到期时间', key: 'expiry', scopedSlots: { customRender: 'expiry' }, width: 150 },
+          { title: '客户端标识', key: 'clientInfo', scopedSlots: { customRender: 'clientInfo' }, width: 220, align: 'left' },
+          { title: '关联入站', key: 'inbounds', scopedSlots: { customRender: 'inbounds' }, width: 220, align: 'left' },
+          { title: '操作', key: 'actions', scopedSlots: { customRender: 'actions' }, width: 120, align: 'center' },
+          { title: '订阅服务', key: 'subscription', scopedSlots: { customRender: 'subscription' }, width: 190, align: 'center' },
+          { title: '流量用量', key: 'traffic', scopedSlots: { customRender: 'traffic' }, width: 170, align: 'left' },
+          { title: '到期时间', key: 'expiry', scopedSlots: { customRender: 'expiry' }, width: 150, align: 'left' },
           { title: '限制IP', key: 'limitIp', scopedSlots: { customRender: 'limitIp' }, width: 80, align: 'center' },
-          { title: '操作', key: 'actions', scopedSlots: { customRender: 'actions' }, width: 120, align: 'center', fixed: 'right' },
         ],
+        subSettings: {
+          enable: false,
+          subTitle: '',
+          subURI: '',
+          subJsonURI: '',
+          subJsonEnable: false,
+          subClashURI: '',
+          subClashEnable: false,
+          subPort: 0,
+          subPath: '',
+          subDomain: '',
+        },
         formModal: {
           visible: false,
           loading: false,
@@ -546,6 +630,7 @@
       },
     },
     mounted() {
+      this.fetchDefaultSettings();
       this.fetchData();
       this.fetchOptions();
     },
@@ -557,6 +642,9 @@
           if (res.data.success && res.data.obj) {
             this.summary = res.data.obj.summary || {};
             this.clients = res.data.obj.clients || [];
+            if (res.data.obj.defaultSettings) {
+              this.applySubSettings(res.data.obj.defaultSettings);
+            }
           } else {
             this.$message.error(res.data.msg || '获取客户端数据失败');
           }
@@ -565,6 +653,31 @@
         } finally {
           this.loading = false;
         }
+      },
+      async fetchDefaultSettings() {
+        try {
+          const res = await axios.post('/panel/setting/defaultSettings');
+          if (res.data.success && res.data.obj) {
+            this.applySubSettings(res.data.obj);
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      },
+      applySubSettings(obj) {
+        if (!obj) return;
+        this.subSettings = {
+          enable: obj.subEnable,
+          subTitle: obj.subTitle,
+          subURI: obj.subURI || '',
+          subJsonURI: obj.subJsonURI || '',
+          subJsonEnable: obj.subJsonEnable,
+          subClashURI: obj.subClashURI || '',
+          subClashEnable: obj.subClashEnable,
+          subPort: obj.subPort || 0,
+          subPath: obj.subPath || '',
+          subDomain: obj.subDomain || obj.defaultDomain || '',
+        };
       },
       async fetchOptions() {
         try {
@@ -779,20 +892,32 @@
         }
       },
       buildSubUrl(subId) {
-        if (window.app && window.app.subSettings && window.app.subSettings.subURI) {
-          return window.app.subSettings.subURI + subId;
+        if (!subId) return '';
+        if (this.subSettings && this.subSettings.subURI) {
+          const base = this.subSettings.subURI;
+          return base.endsWith('/') ? base + subId : base + '/' + subId;
+        }
+        if (this.subSettings && this.subSettings.subPort && this.subSettings.subPath) {
+          const proto = window.location.protocol;
+          const host = this.subSettings.subDomain || window.location.hostname;
+          const port = (this.subSettings.subPort == 443 || this.subSettings.subPort == 80) ? '' : (':' + this.subSettings.subPort);
+          let path = this.subSettings.subPath;
+          if (!path.startsWith('/')) path = '/' + path;
+          if (!path.endsWith('/')) path = path + '/';
+          return `${proto}//${host}${port}${path}${subId}`;
         }
         const protocol = window.location.protocol;
         const host = window.location.host;
         return `${protocol}//${host}/sub/${subId}`;
       },
       buildClashUrl(subId) {
-        if (window.app && window.app.subSettings && window.app.subSettings.subClashURI) {
-          return window.app.subSettings.subClashURI + subId;
+        if (!subId) return '';
+        if (this.subSettings && this.subSettings.subClashURI) {
+          const base = this.subSettings.subClashURI;
+          return base.endsWith('/') ? base + subId : base + '/' + subId;
         }
-        const protocol = window.location.protocol;
-        const host = window.location.host;
-        return `${protocol}//${host}/sub/clash/${subId}`;
+        const subUrl = this.buildSubUrl(subId);
+        return subUrl.includes('?') ? `${subUrl}&clash=1` : `${subUrl}?clash=1`;
       },
       copySubLink(record) {
         if (!record.subId) return this.$message.warning('该客户端暂无 SubID');

@@ -774,6 +774,9 @@ func (s *SettingService) GetDefaultSettings(host string) (any, error) {
 		"subURI":      func() (any, error) { return s.GetSubURI() },
 		"subJsonURI":  func() (any, error) { return s.GetSubJsonURI() },
 		"subClashURI": func() (any, error) { return s.GetSubClashURI() },
+		"subPort":     func() (any, error) { return s.GetSubPort() },
+		"subPath":     func() (any, error) { return s.GetSubPath() },
+		"subDomain":   func() (any, error) { return s.GetSubDomain() },
 		"inboundBindAddress": func() (any, error) {
 			return s.GetInboundBindAddress()
 		},
