@@ -121,11 +121,9 @@ jobs:
           echo "Release tag: $TAG_NAME"
 
       - name: Upload files to GH release
-        uses: svenstaro/upload-release-action@v2
-        with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          tag: ${{ steps.get_tag.outputs.tag_name }}
-          file: x-ui-linux-${{ matrix.platform }}.tar.gz
-          asset_name: x-ui-linux-${{ matrix.platform }}.tar.gz
-          overwrite: true
-          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.get_tag.outputs.tag_name }}"
+          gh release view "$TAG" || gh release create "$TAG" --title "$TAG" --notes "Release $TAG"
+          gh release upload "$TAG" "x-ui-linux-${{ matrix.platform }}.tar.gz" --clobber
