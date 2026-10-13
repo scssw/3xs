@@ -1,4 +1,4 @@
-@'
+#!/bin/bash
 set -e
 
 echo "== go =="
@@ -35,4 +35,3 @@ fi
 
 echo "== verify (ldd) =="
 ldd ./x-ui | head
-'@ | Set-Content -NoNewline -Encoding UTF8 build.sh
