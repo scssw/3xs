@@ -41,6 +41,23 @@
         background: rgba(0, 0, 0, 0.05);
         border-color: rgba(0, 0, 0, 0.14);
     }
+
+    .subscription-page tr-qr-box.qr-box {
+        display: inline-flex;
+        flex-direction: column;
+        align-items: center;
+        width: 220px;
+    }
+
+    .subscription-page tr-qr-box.qr-box .qr-tag {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .subscription-page tr-qr-box.qr-box .qr-bg,
+    .subscription-page tr-qr-box.qr-box .qr-bg-sub {
+        margin-inline: auto;
+    }
 </style>
 {{ template "page/head_end" .}}
 
@@ -83,7 +100,8 @@
                         <a-form-item>
                             <a-space direction="vertical" align="center">
                                 <a-row type="flex" :gutter="[8,8]" justify="center" style="width:100%">
-                                    <a-col :xs="24" :sm="app.subJsonUrl ? 12 : 24" style="text-align:center;">
+                                    <a-col :xs="24" :sm="app.subJsonUrl || app.subClashUrl ? 12 : 24"
+                                        style="text-align:center;">
                                         <tr-qr-box class="qr-box">
                                             <a-tag color="purple" class="qr-tag">
                                                 <span>{{ i18n
@@ -112,6 +130,19 @@
                                             </tr-qr-bg>
                                         </tr-qr-box>
                                     </a-col>
+                                    <a-col v-if="app.subClashUrl" :xs="24" :sm="12" style="text-align:center;">
+                                        <tr-qr-box class="qr-box">
+                                            <a-tag color="purple" class="qr-tag">
+                                                <span>Clash / Mihomo</span>
+                                            </a-tag>
+                                            <tr-qr-bg class="qr-bg-sub">
+                                                <tr-qr-bg-inner class="qr-bg-sub-inner">
+                                                    <canvas id="qrcode-subclash" class="qr-cv" title='{{ i18n "copy" }}'
+                                                        @click="copy(app.subClashUrl)"></canvas>
+                                                </tr-qr-bg-inner>
+                                            </tr-qr-bg>
+                                        </tr-qr-box>
+                                    </a-col>
                                 </a-row>
                             </a-space>
                         </a-form-item>
@@ -122,7 +153,10 @@
                                     app.sId
                                     ]]</a-descriptions-item>
                                 <a-descriptions-item label='{{ i18n "subscription.status" }}'>
-                                    <template v-if="isUnlimited">
+                                    <template v-if="!app.enabled">
+                                        <a-tag color="red">{{ i18n "subscription.inactive" }}</a-tag>
+                                    </template>
+                                    <template v-else-if="isUnlimited">
                                         <a-tag color="purple">{{ i18n
                                             "subscription.unlimited" }}</a-tag>
                                     </template>
@@ -179,8 +213,6 @@
                                 [[ link ]]
                             </div>
                         </div>
-                    </div>
-
                     </div>
                     <br />
 
@@ -243,10 +275,10 @@
 
 <!-- Bootstrap data for external JS -->
 <template id="subscription-data" data-sid="{{ .sId }}" data-sub-url="{{ .subUrl }}" data-subjson-url="{{ .subJsonUrl }}"
-    data-download="{{ .download }}" data-upload="{{ .upload }}" data-used="{{ .used }}" data-total="{{ .total }}"
-    data-remained="{{ .remained }}" data-expire="{{ .expire }}" data-lastonline="{{ .lastOnline }}"
-    data-downloadbyte="{{ .downloadByte }}" data-uploadbyte="{{ .uploadByte }}" data-totalbyte="{{ .totalByte }}"
-    data-datepicker="{{ .datepicker }}"></template>
+    data-subclash-url="{{ .subClashUrl }}" data-download="{{ .download }}" data-upload="{{ .upload }}"
+    data-used="{{ .used }}" data-total="{{ .total }}" data-remained="{{ .remained }}" data-expire="{{ .expire }}"
+    data-lastonline="{{ .lastOnline }}" data-downloadbyte="{{ .downloadByte }}" data-uploadbyte="{{ .uploadByte }}"
+    data-totalbyte="{{ .totalByte }}" data-datepicker="{{ .datepicker }}" data-enabled="{{ .enabled }}"></template>
 <textarea id="subscription-links" style="display:none">{{ range .result }}{{ . }}
 {{ end }}</textarea>
 

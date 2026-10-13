@@ -11,7 +11,6 @@ const REALITY_TARGETS = [
     { target: 'www.bing.com:443', sni: 'www.bing.com,bing.com' },
     { target: 'www.oracle.com:443', sni: 'www.oracle.com,oracle.com' },
     { target: 'www.intel.com:443', sni: 'www.intel.com,intel.com' },
-    { target: 'www.microsoft.com:443', sni: 'www.microsoft.com,microsoft.com' },
     { target: 'www.amazon.com:443', sni: 'www.amazon.com,amazon.com' }
 ];
 

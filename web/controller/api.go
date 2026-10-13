@@ -13,6 +13,7 @@ import (
 type APIController struct {
 	BaseController
 	inboundController *InboundController
+	clientController  *ClientController
 	serverController  *ServerController
 	Tgbot             service.Tgbot
 }
@@ -43,6 +44,10 @@ func (a *APIController) initRouter(g *gin.RouterGroup) {
 	// Inbounds API
 	inbounds := api.Group("/inbounds")
 	a.inboundController = NewInboundController(inbounds)
+
+	// Clients API
+	clients := api.Group("/clients")
+	a.clientController = NewClientController(clients)
 
 	// Server API
 	server := api.Group("/server")

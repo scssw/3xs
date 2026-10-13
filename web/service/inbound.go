@@ -31,7 +31,11 @@ type InboundService struct {
 func (s *InboundService) GetInbounds(userId int) ([]*model.Inbound, error) {
 	db := database.GetDB()
 	var inbounds []*model.Inbound
-	err := db.Model(model.Inbound{}).Preload("ClientStats").Where("user_id = ?", userId).Find(&inbounds).Error
+	err := db.Model(model.Inbound{}).
+		Preload("ClientStats").
+		Where("user_id = ?", userId).
+		Order("id desc").
+		Find(&inbounds).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return nil, err
 	}
@@ -62,7 +66,10 @@ func (s *InboundService) GetInbounds(userId int) ([]*model.Inbound, error) {
 func (s *InboundService) GetAllInbounds() ([]*model.Inbound, error) {
 	db := database.GetDB()
 	var inbounds []*model.Inbound
-	err := db.Model(model.Inbound{}).Preload("ClientStats").Find(&inbounds).Error
+	err := db.Model(model.Inbound{}).
+		Preload("ClientStats").
+		Order("id desc").
+		Find(&inbounds).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return nil, err
 	}
@@ -268,6 +275,10 @@ func (s *InboundService) AddInbound(inbound *model.Inbound) (*model.Inbound, boo
 			}
 		case "shadowsocks":
 			if client.Email == "" {
+				return inbound, false, common.NewError("empty client ID")
+			}
+		case "hysteria", "hysteria2":
+			if client.Auth == "" {
 				return inbound, false, common.NewError("empty client ID")
 			}
 		default:
@@ -606,6 +617,10 @@ func (s *InboundService) AddInboundClient(data *model.Inbound) (bool, error) {
 			if client.Email == "" {
 				return false, common.NewError("empty client ID")
 			}
+		case "hysteria", "hysteria2":
+			if client.Auth == "" {
+				return false, common.NewError("empty client ID")
+			}
 		default:
 			if client.ID == "" {
 				return false, common.NewError("empty client ID")
@@ -655,6 +670,7 @@ func (s *InboundService) AddInboundClient(data *model.Inbound) (bool, error) {
 				err1 := s.xrayApi.AddUser(string(oldInbound.Protocol), oldInbound.Tag, map[string]any{
 					"email":    client.Email,
 					"id":       client.ID,
+					"auth":     client.Auth,
 					"security": client.Security,
 					"flow":     client.Flow,
 					"password": client.Password,
@@ -690,11 +706,13 @@ func (s *InboundService) DelInboundClient(inboundId int, clientId string) (bool,
 
 	email := ""
 	client_key := "id"
-	if oldInbound.Protocol == "trojan" {
+	switch oldInbound.Protocol {
+	case "trojan":
 		client_key = "password"
-	}
-	if oldInbound.Protocol == "shadowsocks" {
+	case "shadowsocks":
 		client_key = "email"
+	case "hysteria", "hysteria2":
+		client_key = "auth"
 	}
 
 	interfaceClients := settings["clients"].([]any)
@@ -702,7 +720,7 @@ func (s *InboundService) DelInboundClient(inboundId int, clientId string) (bool,
 	needApiDel := false
 	for _, client := range interfaceClients {
 		c := client.(map[string]any)
-		c_id := c[client_key].(string)
+		c_id, _ := c[client_key].(string)
 		if c_id == clientId {
 			email, _ = c["email"].(string)
 			needApiDel, _ = c["enable"].(bool)
@@ -801,6 +819,9 @@ func (s *InboundService) UpdateInboundClient(data *model.Inbound, clientId strin
 		case "shadowsocks":
 			oldClientId = oldClient.Email
 			newClientId = clients[0].Email
+		case "hysteria", "hysteria2":
+			oldClientId = oldClient.Auth
+			newClientId = clients[0].Auth
 		default:
 			oldClientId = oldClient.ID
 			newClientId = clients[0].ID
@@ -919,6 +940,7 @@ func (s *InboundService) UpdateInboundClient(data *model.Inbound, clientId strin
 			err1 := s.xrayApi.AddUser(string(oldInbound.Protocol), oldInbound.Tag, map[string]any{
 				"email":    clients[0].Email,
 				"id":       clients[0].ID,
+				"auth":     clients[0].Auth,
 				"security": clients[0].Security,
 				"flow":     clients[0].Flow,
 				"password": clients[0].Password,
@@ -2160,7 +2182,11 @@ func (s *InboundService) ClearClientIps(clientEmail string) error {
 func (s *InboundService) SearchInbounds(query string) ([]*model.Inbound, error) {
 	db := database.GetDB()
 	var inbounds []*model.Inbound
-	err := db.Model(model.Inbound{}).Preload("ClientStats").Where("remark like ?", "%"+query+"%").Find(&inbounds).Error
+	err := db.Model(model.Inbound{}).
+		Preload("ClientStats").
+		Where("remark like ?", "%"+query+"%").
+		Order("id desc").
+		Find(&inbounds).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return nil, err
 	}
@@ -2203,7 +2229,7 @@ func (s *InboundService) MigrationRequirements() {
 
 	// Fix inbounds based problems
 	var inbounds []*model.Inbound
-	err = tx.Model(model.Inbound{}).Where("protocol IN (?)", []string{"vmess", "vless", "trojan"}).Find(&inbounds).Error
+	err = tx.Model(model.Inbound{}).Where("protocol IN (?)", []string{"vmess", "vless", "trojan", "shadowsocks", "hysteria", "hysteria2"}).Find(&inbounds).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return
 	}
@@ -2274,6 +2300,43 @@ func (s *InboundService) MigrationRequirements() {
 
 	// Remove orphaned traffics
 	tx.Where("inbound_id = 0").Delete(xray.ClientTraffic{})
+
+	// Xray-core renamed tlsSettings.verifyPeerCertInNames to verifyPeerCertByName.
+	var tlsFieldInbounds []struct {
+		Id             int
+		StreamSettings []byte
+	}
+	err = tx.Raw(`select id, stream_settings
+	from inbounds
+	WHERE json_extract(stream_settings, '$.tlsSettings.verifyPeerCertInNames') IS NOT NULL`).Scan(&tlsFieldInbounds).Error
+	if err != nil {
+		return
+	}
+	for _, inbound := range tlsFieldInbounds {
+		var stream map[string]any
+		json.Unmarshal(inbound.StreamSettings, &stream)
+		tlsSettings, _ := stream["tlsSettings"].(map[string]any)
+		if tlsSettings == nil {
+			continue
+		}
+		if _, exists := tlsSettings["verifyPeerCertByName"]; !exists {
+			value := tlsSettings["verifyPeerCertInNames"]
+			if names, ok := value.([]any); ok {
+				parts := make([]string, 0, len(names))
+				for _, name := range names {
+					if s, ok := name.(string); ok && s != "" {
+						parts = append(parts, s)
+					}
+				}
+				tlsSettings["verifyPeerCertByName"] = strings.Join(parts, ",")
+			} else {
+				tlsSettings["verifyPeerCertByName"] = value
+			}
+		}
+		delete(tlsSettings, "verifyPeerCertInNames")
+		newStream, _ := json.MarshalIndent(stream, "", "  ")
+		tx.Model(model.Inbound{}).Where("id = ?", inbound.Id).Update("stream_settings", newStream)
+	}
 
 	// Migrate old MultiDomain to External Proxy
 	var externalProxy []struct {

@@ -117,8 +117,9 @@ func (j *CheckClientIpJob) hasLimitIp() bool {
 
 func (j *CheckClientIpJob) processLogFile() bool {
 
-	ipRegex := regexp.MustCompile(`from (?:tcp:|udp:)?\[?([0-9a-fA-F\.:]+)\]?:\d+ accepted`)
-	emailRegex := regexp.MustCompile(`email: (.+)$`)
+	ipRegexFrom := regexp.MustCompile(`from (?:tcp:|udp:)?\[?([0-9a-fA-F\.:]+)\]?:\d+`)
+	ipRegexAccepted := regexp.MustCompile(`accepted (?:tcp:|udp:)?\[?([0-9a-fA-F\.:]+)\]?:\d+`)
+	emailRegex := regexp.MustCompile(`email:\s*([^\s]+)`)
 
 	accessLogPath, _ := xray.GetAccessLogPath()
 	file, _ := os.Open(accessLogPath)
@@ -130,12 +131,15 @@ func (j *CheckClientIpJob) processLogFile() bool {
 	for scanner.Scan() {
 		line := scanner.Text()
 
-		ipMatches := ipRegex.FindStringSubmatch(line)
-		if len(ipMatches) < 2 {
+		ip := ""
+		if ipMatches := ipRegexFrom.FindStringSubmatch(line); len(ipMatches) >= 2 {
+			ip = ipMatches[1]
+		} else if ipMatches := ipRegexAccepted.FindStringSubmatch(line); len(ipMatches) >= 2 {
+			ip = ipMatches[1]
+		}
+		if ip == "" {
 			continue
 		}
-
-		ip := ipMatches[1]
 
 		if ip == "127.0.0.1" || ip == "::1" {
 			continue

@@ -92,6 +92,7 @@
 "ultraDark" = "Ultra Dark"
 "dashboard" = "Overview"
 "inbounds" = "Inbounds"
+"clients" = "Clients"
 "settings" = "Panel Settings"
 "xray" = "Xray Configs"
 "logout" = "Log Out"
@@ -247,6 +248,9 @@
 "periodicTrafficResetTitle" = "Traffic Reset"
 "periodicTrafficResetDesc" = "Automatically reset traffic counter at specified intervals"
 "lastReset" = "Last Reset"
+
+[pages.clients]
+"title" = "Clients"
 
 [pages.client]
 "add" = "Add Client"

@@ -16,6 +16,13 @@
             </template>
         </a-setting-list-item>
         <a-setting-list-item paddings="small">
+            <template #title>Clash / Mihomo Subscription</template>
+            <template #description>Enable direct Clash and Mihomo YAML subscriptions.</template>
+            <template #control>
+                <a-switch v-model="allSetting.subClashEnable"></a-switch>
+            </template>
+        </a-setting-list-item>
+        <a-setting-list-item paddings="small">
             <template #title>{{ i18n "pages.settings.subListen"}}</template>
             <template #description>{{ i18n "pages.settings.subListenDesc"}}</template>
             <template #control>
@@ -26,7 +33,7 @@
             <template #title>{{ i18n "pages.settings.subDomain"}}</template>
             <template #description>{{ i18n "pages.settings.subDomainDesc"}}</template>
             <template #control>
-                <a-input type="text" v-model="allSetting.subDomain"></a-input>
+                <a-input type="text" v-model="allSetting.subDomain" @blur="applyDefaultSubTitle"></a-input>
             </template>
         </a-setting-list-item>
         <a-setting-list-item paddings="small">
@@ -76,7 +83,7 @@
             <template #title>{{ i18n "pages.settings.subTitle"}}</template>
             <template #description>{{ i18n "pages.settings.subTitleDesc"}}</template>
             <template #control>
-                <a-input type="text" v-model="allSetting.subTitle"></a-input>
+                <a-input type="text" v-model="allSetting.subTitle" :placeholder="deriveDefaultSubTitle(allSetting.subDomain || allSetting.webDomain || entryHost)"></a-input>
             </template>
         </a-setting-list-item>
         <a-setting-list-item paddings="small">

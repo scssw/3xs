@@ -92,6 +92,7 @@
 "ultraDark" = "超暗色"
 "dashboard" = "系统状态"
 "inbounds" = "入站列表"
+"clients" = "客户端"
 "settings" = "面板设置"
 "xray" = "Xray 设置"
 "logout" = "退出登录"
@@ -247,6 +248,9 @@
 "periodicTrafficResetTitle" = "流量重置"
 "periodicTrafficResetDesc" = "按指定间隔自动重置流量计数器"
 "lastReset" = "上次重置"
+
+[pages.clients]
+"title" = "客户端列表"
 
 [pages.client]
 "add" = "添加客户端"

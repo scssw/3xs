@@ -67,6 +67,50 @@ arch() {
 
 echo "Arch: $(arch)"
 
+xray_asset_arch() {
+    case "$(arch)" in
+        amd64) echo '64' ;;
+        386) echo '32' ;;
+        arm64) echo 'arm64-v8a' ;;
+        armv7) echo 'arm32-v7a' ;;
+        armv6) echo 'arm32-v6' ;;
+        armv5) echo 'arm32-v5' ;;
+        *) echo '' ;;
+    esac
+}
+
+install_default_xray() {
+    local xray_version="${XRAY_VERSION:-v26.4.25}"
+    local asset_arch="$(xray_asset_arch)"
+    local target_arch="$(arch)"
+    local target_name="xray-linux-${target_arch}"
+
+    if [[ -z "${asset_arch}" ]]; then
+        echo -e "${yellow}Skipping Xray-core replacement for unsupported arch: ${target_arch}${plain}"
+        return 0
+    fi
+
+    if [[ "${target_arch}" == "armv5" || "${target_arch}" == "armv6" || "${target_arch}" == "armv7" ]]; then
+        target_name="xray-linux-arm"
+    fi
+
+    echo -e "${green}Installing default Xray-core ${xray_version}...${plain}"
+    mkdir -p bin
+    ${curl_bin} -4fL -o /tmp/xray-core.zip "https://github.com/XTLS/Xray-core/releases/download/${xray_version}/Xray-linux-${asset_arch}.zip"
+    if [[ $? -ne 0 ]]; then
+        _fail "ERROR: Failed to download Xray-core ${xray_version}"
+    fi
+    rm -rf /tmp/xray-core
+    mkdir -p /tmp/xray-core
+    unzip -o /tmp/xray-core.zip -d /tmp/xray-core >/dev/null
+    if [[ $? -ne 0 || ! -f /tmp/xray-core/xray ]]; then
+        _fail "ERROR: Failed to extract Xray-core ${xray_version}"
+    fi
+    mv -f /tmp/xray-core/xray "bin/${target_name}"
+    chmod +x "bin/${target_name}"
+    rm -rf /tmp/xray-core /tmp/xray-core.zip
+}
+
 # Simple helpers
 is_ipv4() {
     [[ "$1" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]] && return 0 || return 1
@@ -108,29 +152,29 @@ install_base() {
     echo -e "${green}Updating and install dependency packages...${plain}"
     case "${release}" in
         ubuntu | debian | armbian)
-            apt-get update >/dev/null 2>&1 && apt-get install -y -q curl tar tzdata socat >/dev/null 2>&1
+            apt-get update >/dev/null 2>&1 && apt-get install -y -q curl tar unzip tzdata socat >/dev/null 2>&1
         ;;
         fedora | amzn | virtuozzo | rhel | almalinux | rocky | ol)
-            dnf -y update >/dev/null 2>&1 && dnf install -y -q curl tar tzdata socat >/dev/null 2>&1
+            dnf -y update >/dev/null 2>&1 && dnf install -y -q curl tar unzip tzdata socat >/dev/null 2>&1
         ;;
         centos)
             if [[ "${VERSION_ID}" =~ ^7 ]]; then
-                yum -y update >/dev/null 2>&1 && yum install -y -q curl tar tzdata socat >/dev/null 2>&1
+                yum -y update >/dev/null 2>&1 && yum install -y -q curl tar unzip tzdata socat >/dev/null 2>&1
             else
-                dnf -y update >/dev/null 2>&1 && dnf install -y -q curl tar tzdata socat >/dev/null 2>&1
+                dnf -y update >/dev/null 2>&1 && dnf install -y -q curl tar unzip tzdata socat >/dev/null 2>&1
             fi
         ;;
         arch | manjaro | parch)
-            pacman -Syu >/dev/null 2>&1 && pacman -Syu --noconfirm curl tar tzdata socat >/dev/null 2>&1
+            pacman -Syu >/dev/null 2>&1 && pacman -Syu --noconfirm curl tar unzip tzdata socat >/dev/null 2>&1
         ;;
         opensuse-tumbleweed | opensuse-leap)
-            zypper refresh >/dev/null 2>&1 && zypper -q install -y curl tar timezone socat >/dev/null 2>&1
+            zypper refresh >/dev/null 2>&1 && zypper -q install -y curl tar unzip timezone socat >/dev/null 2>&1
         ;;
         alpine)
-            apk update >/dev/null 2>&1 && apk add curl tar tzdata socat >/dev/null 2>&1
+            apk update >/dev/null 2>&1 && apk add curl tar unzip tzdata socat >/dev/null 2>&1
         ;;
         *)
-            apt-get update >/dev/null 2>&1 && apt install -y -q curl tar tzdata socat >/dev/null 2>&1
+            apt-get update >/dev/null 2>&1 && apt install -y -q curl tar unzip tzdata socat >/dev/null 2>&1
         ;;
     esac
 }
@@ -541,13 +585,12 @@ prompt_and_setup_ssl() {
     echo -e "${yellow}Choose SSL certificate setup method:${plain}"
     echo -e "${green}1.${plain} Let's Encrypt for Domain (90-day validity, auto-renews)"
     echo -e "${green}2.${plain} Let's Encrypt for IP Address (6-day validity, auto-renews)"
-    echo -e "${green}3.${plain} Custom SSL Certificate (Path to existing files)"
-    echo -e "${blue}Note:${plain} Options 1 & 2 require port 80 open. Option 3 requires manual paths."
+    echo -e "${blue}Note:${plain} Both options require port 80 open. IP certs use shortlived profile."
     read -rp "Choose an option (default 2 for IP): " ssl_choice
     ssl_choice="${ssl_choice// /}"  # Trim whitespace
     
-    # Default to 2 (IP cert) if input is empty or invalid (not 1 or 3)
-    if [[ "$ssl_choice" != "1" && "$ssl_choice" != "3" ]]; then
+    # Default to 2 (IP cert) if not 1
+    if [[ "$ssl_choice" != "1" ]]; then
         ssl_choice="2"
     fi
 
@@ -597,67 +640,6 @@ prompt_and_setup_ssl() {
         else
             systemctl restart x-ui >/dev/null 2>&1
         fi
-
-        ;;
-    3)
-        # User chose Custom Paths (User Provided) option
-        echo -e "${green}Using custom existing certificate...${plain}"
-        local custom_cert=""
-        local custom_key=""
-        local custom_domain=""
-
-        # 3.1 Request Domain to compose Panel URL later
-        read -rp "Please enter domain name certificate issued for: " custom_domain
-        custom_domain="${custom_domain// /}" # Убираем пробелы
-
-        # 3.2 Loop for Certificate Path
-        while true; do
-            read -rp "Input certificate path (keywords: .crt / fullchain): " custom_cert
-            # Strip quotes if present
-            custom_cert=$(echo "$custom_cert" | tr -d '"' | tr -d "'")
-
-            if [[ -f "$custom_cert" && -r "$custom_cert" && -s "$custom_cert" ]]; then
-                break
-            elif [[ ! -f "$custom_cert" ]]; then
-                echo -e "${red}Error: File does not exist! Try again.${plain}"
-            elif [[ ! -r "$custom_cert" ]]; then
-                echo -e "${red}Error: File exists but is not readable (check permissions)!${plain}"
-            else
-                echo -e "${red}Error: File is empty!${plain}"
-            fi
-        done
-
-        # 3.3 Loop for Private Key Path
-        while true; do
-            read -rp "Input private key path (keywords: .key / privatekey): " custom_key
-            # Strip quotes if present
-            custom_key=$(echo "$custom_key" | tr -d '"' | tr -d "'")
-
-            if [[ -f "$custom_key" && -r "$custom_key" && -s "$custom_key" ]]; then
-                break
-            elif [[ ! -f "$custom_key" ]]; then
-                echo -e "${red}Error: File does not exist! Try again.${plain}"
-            elif [[ ! -r "$custom_key" ]]; then
-                echo -e "${red}Error: File exists but is not readable (check permissions)!${plain}"
-            else
-                echo -e "${red}Error: File is empty!${plain}"
-            fi
-        done
-
-        # 3.4 Apply Settings via x-ui binary
-        ${xui_folder}/x-ui cert -webCert "$custom_cert" -webCertKey "$custom_key" >/dev/null 2>&1
-
-        # Set SSL_HOST for composing Panel URL
-        if [[ -n "$custom_domain" ]]; then
-            SSL_HOST="$custom_domain"
-        else
-            SSL_HOST="${server_ip}"
-        fi
-
-        echo -e "${green}✓ Custom certificate paths applied.${plain}"
-        echo -e "${yellow}Note: You are responsible for renewing these files externally.${plain}"
-
-        systemctl restart x-ui >/dev/null 2>&1 || rc-service x-ui restart >/dev/null 2>&1
         ;;
     *)
         echo -e "${red}Invalid option. Skipping SSL setup.${plain}"
@@ -825,7 +807,12 @@ update_x-ui() {
         chmod +x bin/xray-linux-arm >/dev/null 2>&1
     fi
     
-    chmod +x x-ui bin/xray-linux-$(arch) >/dev/null 2>&1
+    install_default_xray
+    if [[ $(arch) == "armv5" || $(arch) == "armv6" || $(arch) == "armv7" ]]; then
+        chmod +x x-ui bin/xray-linux-arm >/dev/null 2>&1
+    else
+        chmod +x x-ui bin/xray-linux-$(arch) >/dev/null 2>&1
+    fi
     
     echo -e "${green}Downloading and installing x-ui.sh script...${plain}"
     ${curl_bin} -fLRo /usr/bin/x-ui https://raw.githubusercontent.com/MHSanaei/3x-ui/main/x-ui.sh >/dev/null 2>&1

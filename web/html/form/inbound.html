@@ -17,7 +17,7 @@
     <a-form-item label='{{ i18n "protocol" }}'>
         <a-select v-model="inbound.protocol" :disabled="isEdit"
             :dropdown-class-name="themeSwitcher.currentTheme">
-            <a-select-option v-for="p in Protocols" :key="p" :value="p">[[ p
+            <a-select-option v-for="p in protocolOptions" :key="p" :value="p">[[ p
                 ]]</a-select-option>
         </a-select>
     </a-form-item>
@@ -130,6 +130,11 @@
 <!-- shadowsocks -->
 <template v-if="inbound.protocol === Protocols.SHADOWSOCKS">
     {{template "form/shadowsocks"}}
+</template>
+
+<!-- hysteria -->
+<template v-if="inbound.protocol === Protocols.HYSTERIA">
+    {{template "form/hysteria"}}
 </template>
 
 <!-- tunnel -->

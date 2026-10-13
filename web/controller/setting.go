@@ -20,6 +20,10 @@ type updateUserForm struct {
 	NewPassword string `json:"newPassword" form:"newPassword"`
 }
 
+type bindAddressForm struct {
+	Address string `json:"address" form:"address"`
+}
+
 // SettingController handles settings and user management operations.
 type SettingController struct {
 	settingService service.SettingService
@@ -41,6 +45,7 @@ func (a *SettingController) initRouter(g *gin.RouterGroup) {
 	g.POST("/all", a.getAllSetting)
 	g.POST("/defaultSettings", a.getDefaultSettings)
 	g.POST("/update", a.updateSetting)
+	g.POST("/inboundBindAddress", a.updateInboundBindAddress)
 	g.POST("/updateUser", a.updateUser)
 	g.POST("/restartPanel", a.restartPanel)
 	g.GET("/getDefaultJsonConfig", a.getDefaultXrayConfig)
@@ -75,6 +80,17 @@ func (a *SettingController) updateSetting(c *gin.Context) {
 		return
 	}
 	err = a.settingService.UpdateAllSetting(allSetting)
+	jsonMsg(c, I18nWeb(c, "pages.settings.toasts.modifySettings"), err)
+}
+
+func (a *SettingController) updateInboundBindAddress(c *gin.Context) {
+	form := &bindAddressForm{}
+	err := c.ShouldBind(form)
+	if err != nil {
+		jsonMsg(c, I18nWeb(c, "pages.settings.toasts.modifySettings"), err)
+		return
+	}
+	err = a.settingService.SetInboundBindAddress(form.Address)
 	jsonMsg(c, I18nWeb(c, "pages.settings.toasts.modifySettings"), err)
 }
 

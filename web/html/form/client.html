@@ -39,6 +39,18 @@
         </template>
         <a-input v-model.trim="client.id"></a-input>
     </a-form-item>
+    <a-form-item v-if="inbound.protocol === Protocols.HYSTERIA">
+        <template slot="label">
+            <a-tooltip>
+                <template slot="title">
+                    <span>{{ i18n "reset" }}</span>
+                </template>
+                Auth Password
+                <a-icon @click="client.auth = RandomUtil.randomSeq(10)" type="sync"></a-icon>
+            </a-tooltip>
+        </template>
+        <a-input v-model.trim="client.auth"></a-input>
+    </a-form-item>
     <a-form-item v-if="inbound.protocol === Protocols.VMESS" label='{{ i18n "security" }}'>
         <a-select v-model="client.security" :dropdown-class-name="themeSwitcher.currentTheme">
             <a-select-option v-for="key in USERS_SECURITY" :value="key">[[ key ]]</a-select-option>
@@ -51,7 +63,7 @@
                     <span>{{ i18n "pages.inbounds.subscriptionDesc" }}</span>
                 </template>
                 Subscription
-                <a-icon @click="client.subId = RandomUtil.randomLowerAndNum(16)" type="sync"></a-icon>
+                <a-icon @click="getDefaultSubscriptionTitle ? (client.subId = getDefaultSubscriptionTitle()) : (client.subId = RandomUtil.randomLowerAndNum(16))" type="sync"></a-icon>
             </a-tooltip>
         </template>
         <a-input v-model.trim="client.subId"></a-input>

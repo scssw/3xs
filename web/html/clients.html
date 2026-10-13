@@ -1,0 +1,865 @@
+{{ template "page/head_start" .}}
+<style>
+  .client-table {
+    margin-top: 16px;
+  }
+  .inbound-badge-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .inbound-chip {
+    font-size: 12px;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-weight: 500;
+  }
+  .action-btn-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .action-icon {
+    font-size: 18px;
+    cursor: pointer;
+    transition: color 0.2s;
+  }
+  .action-icon:hover {
+    color: var(--color-primary-100);
+  }
+  .action-icon-delete:hover {
+    color: #ff4d4f;
+  }
+  .online-indicator {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 6px;
+  }
+  .online-indicator.online {
+    background-color: #52c41a;
+    box-shadow: 0 0 6px #52c41a;
+  }
+  .online-indicator.offline {
+    background-color: #d9d9d9;
+  }
+  .traffic-bar-box {
+    min-width: 120px;
+  }
+  .traffic-text {
+    font-size: 12px;
+    white-space: nowrap;
+  }
+  .credentials-panel {
+    background: rgba(0, 0, 0, 0.02);
+    border: 1px dashed #d9d9d9;
+    border-radius: 6px;
+    padding: 12px;
+    margin-bottom: 16px;
+  }
+  .dark .credentials-panel {
+    background: rgba(255, 255, 255, 0.03);
+    border-color: #434343;
+  }
+</style>
+{{ template "page/head_end" .}}
+
+{{ template "page/body_start" .}}
+<a-layout id="app" v-cloak :class="themeSwitcher.currentTheme + ' inbounds-page'">
+  <a-sidebar></a-sidebar>
+  <a-layout id="content-layout">
+    <a-layout-content>
+      <a-spin :spinning="loading" :delay="300" tip='{{ i18n "loading"}}'>
+        <!-- Statistics Header -->
+        <a-row :gutter="[16, 12]">
+          <a-col :span="24">
+            <a-card size="small" :style="{ padding: '16px' }" hoverable>
+              <a-row :gutter="16">
+                <a-col :xs="12" :sm="12" :md="5">
+                  <a-custom-statistic title='{{ i18n "pages.inbounds.totalDownUp" }}'
+                    :value="`${SizeFormatter.sizeFormat(summary.totalUp || 0)} / ${SizeFormatter.sizeFormat(summary.totalDown || 0)}`">
+                    <template #prefix>
+                      <a-icon type="swap"></a-icon>
+                    </template>
+                  </a-custom-statistic>
+                </a-col>
+                <a-col :xs="12" :sm="12" :md="5">
+                  <a-custom-statistic title='{{ i18n "pages.inbounds.totalUsage" }}'
+                    :value="SizeFormatter.sizeFormat((summary.totalUp || 0) + (summary.totalDown || 0))">
+                    <template #prefix>
+                      <a-icon type="pie-chart"></a-icon>
+                    </template>
+                  </a-custom-statistic>
+                </a-col>
+                <a-col :xs="8" :sm="8" :md="4">
+                  <a-custom-statistic title='{{ i18n "clients" }}' :value="summary.totalCount || 0">
+                    <template #prefix>
+                      <a-icon type="team"></a-icon>
+                    </template>
+                  </a-custom-statistic>
+                </a-col>
+                <a-col :xs="8" :sm="8" :md="5">
+                  <a-custom-statistic title='{{ i18n "online" }}' :value="summary.onlineCount || 0">
+                    <template #prefix>
+                      <a-icon type="check-circle" :style="{ color: '#52c41a' }"></a-icon>
+                    </template>
+                  </a-custom-statistic>
+                </a-col>
+                <a-col :xs="8" :sm="8" :md="5">
+                  <a-custom-statistic title='{{ i18n "depleted" }} / {{ i18n "disabled" }}'
+                    :value="`${summary.depletedCount || 0} / ${summary.disabledCount || 0}`">
+                    <template #prefix>
+                      <a-icon type="close-circle" :style="{ color: '#ff4d4f' }"></a-icon>
+                    </template>
+                  </a-custom-statistic>
+                </a-col>
+              </a-row>
+            </a-card>
+          </a-col>
+        </a-row>
+
+        <!-- Actions / Filter Bar -->
+        <a-card size="small" :style="{ marginTop: '12px' }">
+          <a-row type="flex" justify="space-between" align="middle" :gutter="[8, 8]">
+            <a-col :xs="24" :sm="12" :md="8">
+              <a-space>
+                <a-button type="primary" icon="plus" @click="openAddModal">
+                  {{ i18n "pages.client.add" }}
+                </a-button>
+                <a-button icon="reload" @click="fetchData">
+                  {{ i18n "reset" }}
+                </a-button>
+              </a-space>
+            </a-col>
+            <a-col :xs="24" :sm="12" :md="10" :style="{ textAlign: 'right' }">
+              <a-space>
+                <a-select v-model="filterStatus" :style="{ width: '110px' }" :dropdown-class-name="themeSwitcher.currentTheme">
+                  <a-select-option value="all">全部状态</a-select-option>
+                  <a-select-option value="online">{{ i18n "online" }}</a-select-option>
+                  <a-select-option value="active">{{ i18n "enabled" }}</a-select-option>
+                  <a-select-option value="disabled">{{ i18n "disabled" }}</a-select-option>
+                  <a-select-option value="depleted">{{ i18n "depleted" }}</a-select-option>
+                </a-select>
+                <a-input-search v-model="searchKeyword" placeholder="搜索 邮箱 / 备注 / 订阅ID / 入站"
+                  :style="{ width: '220px' }" allow-clear></a-input-search>
+              </a-space>
+            </a-col>
+          </a-row>
+        </a-card>
+
+        <!-- Clients Table -->
+        <a-card size="small" :style="{ marginTop: '12px' }">
+          <a-table :columns="columns" :data-source="filteredClients" :row-key="record => record.email"
+            :pagination="pagination" :scroll="{ x: 1000 }" size="middle">
+            <!-- Status & Enable -->
+            <template slot="enable" slot-scope="text, record">
+              <a-switch :checked="record.enable" @change="toggleEnable(record)" :loading="record._toggling"></a-switch>
+            </template>
+
+            <!-- Client Email & Remark -->
+            <template slot="clientInfo" slot-scope="text, record">
+              <div>
+                <span class="online-indicator" :class="record.online ? 'online' : 'offline'"></span>
+                <b style="cursor: pointer;" @click="copyText(record.email)">[[ record.email ]]</b>
+                <div v-if="record.comment" style="font-size: 12px; color: #8c8c8c; margin-top: 2px;">
+                  <a-icon type="message"></a-icon> [[ record.comment ]]
+                </div>
+              </div>
+            </template>
+
+            <!-- Associated Inbounds -->
+            <template slot="inbounds" slot-scope="text, record">
+              <div class="inbound-badge-group">
+                <template v-if="record.inbounds && record.inbounds.length > 0">
+                  <a-tag v-for="inb in record.inbounds" :key="inb.id" :color="getProtocolColor(inb.protocol)">
+                    [[ inb.protocol.toUpperCase() ]]: [[ inb.port ]] [[ inb.remark ? ('(' + inb.remark + ')') : '' ]]
+                  </a-tag>
+                </template>
+                <template v-else>
+                  <a-tag color="orange">未关联入站</a-tag>
+                </template>
+              </div>
+            </template>
+
+            <!-- Subscription Links -->
+            <template slot="subscription" slot-scope="text, record">
+              <a-space direction="vertical" :size="2">
+                <a-space :size="4">
+                  <a-tag color="purple" style="font-family: monospace; cursor: pointer;" @click="copyText(record.subId)">
+                    Sub: [[ record.subId ? (record.subId.substring(0, 8) + '...') : '-' ]]
+                  </a-tag>
+                  <a-tooltip title="复制节点订阅链接">
+                    <a-button type="link" size="small" icon="link" @click="copySubLink(record)"></a-button>
+                  </a-tooltip>
+                  <a-tooltip title="复制Clash配置订阅">
+                    <a-button type="link" size="small" icon="cloud-download" @click="copyClashLink(record)"></a-button>
+                  </a-tooltip>
+                  <a-tooltip title="查看二维码及链接">
+                    <a-button type="link" size="small" icon="qrcode" @click="openQrModal(record)"></a-button>
+                  </a-tooltip>
+                </a-space>
+              </a-space>
+            </template>
+
+            <!-- Traffic Usage -->
+            <template slot="traffic" slot-scope="text, record">
+              <div class="traffic-bar-box">
+                <div class="traffic-text">
+                  [[ SizeFormatter.sizeFormat(record.up + record.down) ]] / 
+                  <span v-if="record.totalGB > 0">[[ record.totalGB ]] GB</span>
+                  <span v-else>&infin;</span>
+                </div>
+                <a-progress :percent="getTrafficPercent(record)" :status="getTrafficStatus(record)"
+                  :stroke-color="getTrafficColor(record)" size="small" :show-info="false"></a-progress>
+                <div style="font-size: 11px; color: #8c8c8c;">
+                  ↑ [[ SizeFormatter.sizeFormat(record.up) ]] ↓ [[ SizeFormatter.sizeFormat(record.down) ]]
+                </div>
+              </div>
+            </template>
+
+            <!-- Expiry Time -->
+            <template slot="expiry" slot-scope="text, record">
+              <div>
+                <template v-if="record.expiryTime > 0">
+                  <div>[[ formatDate(record.expiryTime) ]]</div>
+                  <a-tag :color="getExpiryTagColor(record)">[[ getExpiryLabel(record) ]]</a-tag>
+                </template>
+                <template v-else>
+                  <a-tag color="blue">{{ i18n "indefinite" }}</a-tag>
+                </template>
+              </div>
+            </template>
+
+            <!-- IP Limit -->
+            <template slot="limitIp" slot-scope="text, record">
+              <a-space>
+                <a-tag v-if="record.limitIp > 0" color="cyan" style="cursor: pointer;" @click="openIpsModal(record)">
+                  <a-icon type="desktop"></a-icon> [[ record.limitIp ]]
+                </a-tag>
+                <span v-else style="color: #8c8c8c;">不限</span>
+              </a-space>
+            </template>
+
+            <!-- Actions -->
+            <template slot="actions" slot-scope="text, record">
+              <div class="action-btn-group">
+                <a-tooltip title='{{ i18n "edit" }}'>
+                  <a-icon type="edit" class="action-icon" @click="openEditModal(record)"></a-icon>
+                </a-tooltip>
+                <a-tooltip title='{{ i18n "pages.inbounds.resetTraffic" }}'>
+                  <a-popconfirm title="确定要重置该客户端的已用流量吗？" ok-text='{{ i18n "sure" }}' cancel-text='{{ i18n "cancel" }}'
+                    :overlay-class-name="themeSwitcher.currentTheme" @confirm="resetTraffic(record)">
+                    <a-icon type="retweet" class="action-icon"></a-icon>
+                  </a-popconfirm>
+                </a-tooltip>
+                <a-tooltip title='{{ i18n "delete" }}'>
+                  <a-popconfirm title="确定要从所有关联入站中彻底删除此客户端吗？" ok-text='{{ i18n "sure" }}' cancel-text='{{ i18n "cancel" }}'
+                    ok-type="danger" :overlay-class-name="themeSwitcher.currentTheme" @confirm="deleteClient(record)">
+                    <a-icon type="delete" class="action-icon action-icon-delete" :style="{ color: '#ff4d4f' }"></a-icon>
+                  </a-popconfirm>
+                </a-tooltip>
+              </div>
+            </template>
+          </a-table>
+        </a-card>
+      </a-spin>
+    </a-layout-content>
+  </a-layout>
+
+  <!-- Add / Edit Client Modal -->
+  <a-modal v-model="formModal.visible" :title="formModal.isEdit ? '编辑客户端' : '添加客户端'"
+    :confirm-loading="formModal.loading" :ok-text='{{ i18n "sure" }}' cancel-text='{{ i18n "cancel" }}'
+    :class="themeSwitcher.currentTheme" width="680px" @ok="submitForm">
+    <a-form :label-col="{ span: 6 }" :wrapper-col="{ span: 17 }">
+      <!-- Inbounds selection -->
+      <a-form-item label="关联入站" required help="选择客户端加入的入站节点，如同时勾选 VLESS 和 Hysteria2，创建订阅即可一次性使用全部节点">
+        <a-checkbox-group v-model="formModal.inboundIds" style="width: 100%;">
+          <a-row :gutter="[8, 8]">
+            <a-col :span="12" v-for="opt in inboundOptions" :key="opt.id">
+              <a-checkbox :value="opt.id">
+                <a-tag :color="getProtocolColor(opt.protocol)">[[ opt.protocol ]]</a-tag>
+                <b>[[ opt.port ]]</b>
+                <span v-if="opt.remark" style="color: #8c8c8c; font-size: 12px;"> ([[ opt.remark ]])</span>
+              </a-checkbox>
+            </a-col>
+          </a-row>
+        </a-checkbox-group>
+      </a-form-item>
+
+      <!-- Email -->
+      <a-form-item label='{{ i18n "pages.inbounds.email" }}' required>
+        <a-input v-model.trim="formModal.client.email" placeholder="邮箱标识">
+          <a-tooltip slot="suffix" title="自动生成邮箱">
+            <a-icon type="sync" style="cursor: pointer;" @click="generateEmail"></a-icon>
+          </a-tooltip>
+        </a-input>
+      </a-form-item>
+
+      <!-- Subscription ID -->
+      <a-form-item label="订阅ID (Sub ID)">
+        <a-input v-model.trim="formModal.client.subId" placeholder="订阅ID，用于生成 /sub/{subId} 链接">
+          <a-tooltip slot="suffix" title="生成随机SubID">
+            <a-icon type="sync" style="cursor: pointer;" @click="formModal.client.subId = RandomUtil.randomLowerAndNum(16)"></a-icon>
+          </a-tooltip>
+        </a-input>
+      </a-form-item>
+
+      <!-- Credentials Panel -->
+      <div class="credentials-panel">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+          <b style="font-size: 13px;"><a-icon type="key"></a-icon> 协议凭据配置</b>
+          <a-button size="small" type="dashed" icon="thunderbolt" @click="generateAllCredentials">一键生成全部凭据</a-button>
+        </div>
+        
+        <!-- UUID for VLESS/VMESS -->
+        <a-form-item label="UUID (VLESS/VMESS)" :label-col="{ span: 7 }" :wrapper-col="{ span: 17 }">
+          <a-input v-model.trim="formModal.client.id" placeholder="UUID">
+            <a-icon slot="suffix" type="sync" style="cursor: pointer;" @click="formModal.client.id = RandomUtil.randomUUID()"></a-icon>
+          </a-input>
+        </a-form-item>
+
+        <!-- Auth for Hysteria/Hysteria2 -->
+        <a-form-item label="Auth (Hysteria2)" :label-col="{ span: 7 }" :wrapper-col="{ span: 17 }">
+          <a-input v-model.trim="formModal.client.auth" placeholder="Hysteria2 认证密码">
+            <a-icon slot="suffix" type="sync" style="cursor: pointer;" @click="formModal.client.auth = RandomUtil.randomSeq(12)"></a-icon>
+          </a-input>
+        </a-form-item>
+
+        <!-- Password for Trojan/Shadowsocks -->
+        <a-form-item label="密码 (Trojan/SS)" :label-col="{ span: 7 }" :wrapper-col="{ span: 17 }">
+          <a-input v-model.trim="formModal.client.password" placeholder="Trojan / Shadowsocks 密码">
+            <a-icon slot="suffix" type="sync" style="cursor: pointer;" @click="formModal.client.password = RandomUtil.randomSeq(12)"></a-icon>
+          </a-input>
+        </a-form-item>
+      </div>
+
+      <!-- Traffic (Total GB) -->
+      <a-form-item label='{{ i18n "pages.inbounds.traffic" }} (GB)'>
+        <a-input-number v-model="formModal.client.totalGB" :min="0" :style="{ width: '150px' }"
+          @change="onTrafficChange"></a-input-number>
+        <span style="margin-left: 8px; color: #8c8c8c;">0 为不限制</span>
+        <div style="margin-top: 6px;">
+          <a-radio-group size="small" :value="formModal.client.totalGB" @change="e => selectTrafficQuick(e.target.value)">
+            <a-radio-button :value="50">50G (1个月)</a-radio-button>
+            <a-radio-button :value="150">150G (3个月)</a-radio-button>
+            <a-radio-button :value="300">300G (6个月)</a-radio-button>
+            <a-radio-button :value="600">600G (1年)</a-radio-button>
+          </a-radio-group>
+        </div>
+      </a-form-item>
+
+      <!-- Expiry Date -->
+      <a-form-item label='{{ i18n "pages.inbounds.expireDate" }}'>
+        <a-date-picker v-model="formModal.expiryMoment" show-time format="YYYY-MM-DD HH:mm:ss"
+          :dropdown-class-name="themeSwitcher.currentTheme" placeholder="留空为无限期"></a-date-picker>
+        <a-button size="small" type="link" @click="formModal.expiryMoment = null">清除到期时间</a-button>
+      </a-form-item>
+
+      <!-- IP Limit -->
+      <a-form-item label='{{ i18n "pages.inbounds.IPLimit" }}'>
+        <a-input-number v-model="formModal.client.limitIp" :min="0" :style="{ width: '120px' }"></a-input-number>
+        <span style="margin-left: 8px; color: #8c8c8c;">默认限制 2 个设备/IP，0 为不限制</span>
+      </a-form-item>
+
+      <!-- Comment -->
+      <a-form-item label='{{ i18n "comment" }}'>
+        <a-input v-model.trim="formModal.client.comment" placeholder="备注信息"></a-input>
+      </a-form-item>
+
+      <!-- Enable -->
+      <a-form-item label='{{ i18n "enable" }}'>
+        <a-switch v-model="formModal.client.enable"></a-switch>
+      </a-form-item>
+    </a-form>
+  </a-modal>
+
+  <!-- QR Code & Subscription Links Modal -->
+  <a-modal v-model="qrModal.visible" :title="'客户端连接与订阅 - ' + qrModal.email" :footer="null"
+    :class="themeSwitcher.currentTheme" width="580px">
+    <a-tabs default-active-key="sub">
+      <a-tab-pane key="sub" tab="节点订阅">
+        <div style="text-align: center; padding: 16px 0;">
+          <div style="margin-bottom: 12px; word-break: break-all;">
+            <a-tag color="purple">通用订阅链接</a-tag>
+            <div style="margin: 8px 0; font-family: monospace; background: rgba(0,0,0,0.04); padding: 8px; border-radius: 4px;">
+              [[ qrModal.subUrl ]]
+            </div>
+          </div>
+          <canvas id="client-sub-qrcode" style="margin: 0 auto; display: block; border-radius: 8px;"></canvas>
+          <div style="margin-top: 16px;">
+            <a-button type="primary" icon="copy" @click="copyText(qrModal.subUrl)">复制通用订阅</a-button>
+          </div>
+        </div>
+      </a-tab-pane>
+
+      <a-tab-pane key="clash" tab="Clash 订阅">
+        <div style="text-align: center; padding: 16px 0;">
+          <div style="margin-bottom: 12px; word-break: break-all;">
+            <a-tag color="blue">Clash 专用订阅链接</a-tag>
+            <div style="margin: 8px 0; font-family: monospace; background: rgba(0,0,0,0.04); padding: 8px; border-radius: 4px;">
+              [[ qrModal.subClashUrl ]]
+            </div>
+          </div>
+          <canvas id="client-clash-qrcode" style="margin: 0 auto; display: block; border-radius: 8px;"></canvas>
+          <div style="margin-top: 16px;">
+            <a-button type="primary" icon="copy" @click="copyText(qrModal.subClashUrl)">复制 Clash 订阅</a-button>
+          </div>
+        </div>
+      </a-tab-pane>
+
+      <a-tab-pane key="nodes" tab="单节点链接" v-if="qrModal.nodeLinks && qrModal.nodeLinks.length > 0">
+        <a-list item-layout="horizontal" :data-source="qrModal.nodeLinks">
+          <a-list-item slot="renderItem" slot-scope="item, index">
+            <a-list-item-meta :description="item.substring(0, 50) + '...'">
+              <span slot="title"><b>节点 [[ index + 1 ]]</b></span>
+            </a-list-item-meta>
+            <a-button size="small" icon="copy" @click="copyText(item)">复制</a-button>
+          </a-list-item>
+        </a-list>
+      </a-tab-pane>
+    </a-tabs>
+  </a-modal>
+
+  <!-- Online IPs Modal -->
+  <a-modal v-model="ipsModal.visible" :title="'客户端连接 IP 列表 - ' + ipsModal.email" :footer="null"
+    :class="themeSwitcher.currentTheme" width="480px">
+    <div v-if="ipsModal.ips && ipsModal.ips.length > 0">
+      <a-list bordered :data-source="ipsModal.ips">
+        <a-list-item slot="renderItem" slot-scope="ip">
+          <span><a-icon type="environment"></a-icon> [[ ip ]]</span>
+        </a-list-item>
+      </a-list>
+      <div style="text-align: right; margin-top: 12px;">
+        <a-button type="danger" size="small" icon="delete" @click="clearClientIps">清空已记录 IP</a-button>
+      </div>
+    </div>
+    <div v-else style="text-align: center; color: #8c8c8c; padding: 20px 0;">
+      暂无 IP 记录
+    </div>
+  </a-modal>
+</a-layout>
+
+{{template "page/body_scripts" .}}
+{{template "component/aSidebar" .}}
+{{template "component/aThemeSwitch" .}}
+{{template "component/aCustomStatistic" .}}
+{{template "component/aPersianDatepicker" .}}
+
+<script src="{{ .base_path }}assets/qrcode/qrious2.min.js"></script>
+<script>
+  const app = new Vue({
+    delimiters: ['[[', ']]'],
+    el: '#app',
+    data() {
+      return {
+        themeSwitcher: themeSwitcher,
+        loading: false,
+        summary: {},
+        clients: [],
+        inboundOptions: [],
+        searchKeyword: '',
+        filterStatus: 'all',
+        pagination: {
+          pageSize: 20,
+          showSizeChanger: true,
+          pageSizeOptions: ['10', '20', '50', '100'],
+          showTotal: total => `共 ${total} 个客户端`,
+        },
+        columns: [
+          { title: '启用', key: 'enable', scopedSlots: { customRender: 'enable' }, width: 65, align: 'center' },
+          { title: '客户端标识', key: 'clientInfo', scopedSlots: { customRender: 'clientInfo' }, width: 220 },
+          { title: '关联入站', key: 'inbounds', scopedSlots: { customRender: 'inbounds' }, minWidth: 200 },
+          { title: '订阅服务', key: 'subscription', scopedSlots: { customRender: 'subscription' }, width: 190 },
+          { title: '流量用量', key: 'traffic', scopedSlots: { customRender: 'traffic' }, width: 170 },
+          { title: '到期时间', key: 'expiry', scopedSlots: { customRender: 'expiry' }, width: 150 },
+          { title: '限制IP', key: 'limitIp', scopedSlots: { customRender: 'limitIp' }, width: 80, align: 'center' },
+          { title: '操作', key: 'actions', scopedSlots: { customRender: 'actions' }, width: 120, align: 'center', fixed: 'right' },
+        ],
+        formModal: {
+          visible: false,
+          loading: false,
+          isEdit: false,
+          oldEmail: '',
+          inboundIds: [],
+          expiryMoment: null,
+          client: {
+            email: '',
+            subId: '',
+            id: '',
+            password: '',
+            auth: '',
+            totalGB: 50,
+            expiryTime: 0,
+            limitIp: 2,
+            comment: '',
+            enable: true,
+          },
+        },
+        qrModal: {
+          visible: false,
+          email: '',
+          subId: '',
+          subUrl: '',
+          subClashUrl: '',
+          nodeLinks: [],
+        },
+        ipsModal: {
+          visible: false,
+          email: '',
+          ips: [],
+        },
+      };
+    },
+    computed: {
+      filteredClients() {
+        let list = this.clients || [];
+        const now = new Date().getTime();
+
+        if (this.filterStatus === 'online') {
+          list = list.filter(c => c.online);
+        } else if (this.filterStatus === 'active') {
+          list = list.filter(c => c.enable && !(c.totalGB > 0 && c.up + c.down >= c.totalGB) && !(c.expiryTime > 0 && c.expiryTime <= now));
+        } else if (this.filterStatus === 'disabled') {
+          list = list.filter(c => !c.enable);
+        } else if (this.filterStatus === 'depleted') {
+          list = list.filter(c => (c.totalGB > 0 && c.up + c.down >= c.totalGB) || (c.expiryTime > 0 && c.expiryTime <= now));
+        }
+
+        if (this.searchKeyword) {
+          const kw = this.searchKeyword.toLowerCase();
+          list = list.filter(c => {
+            const emailMatch = (c.email || '').toLowerCase().includes(kw);
+            const commentMatch = (c.comment || '').toLowerCase().includes(kw);
+            const subMatch = (c.subId || '').toLowerCase().includes(kw);
+            const inbMatch = (c.inbounds || []).some(inb => 
+              (inb.tag || '').toLowerCase().includes(kw) || 
+              (inb.protocol || '').toLowerCase().includes(kw) || 
+              (inb.remark || '').toLowerCase().includes(kw) ||
+              String(inb.port).includes(kw)
+            );
+            return emailMatch || commentMatch || subMatch || inbMatch;
+          });
+        }
+
+        return list;
+      },
+    },
+    mounted() {
+      this.fetchData();
+      this.fetchOptions();
+    },
+    methods: {
+      async fetchData() {
+        this.loading = true;
+        try {
+          const res = await axios.get('/panel/api/clients/list');
+          if (res.data.success && res.data.obj) {
+            this.summary = res.data.obj.summary || {};
+            this.clients = res.data.obj.clients || [];
+          } else {
+            this.$message.error(res.data.msg || '获取客户端数据失败');
+          }
+        } catch (e) {
+          this.$message.error('请求客户端列表失败');
+        } finally {
+          this.loading = false;
+        }
+      },
+      async fetchOptions() {
+        try {
+          const res = await axios.get('/panel/api/clients/options');
+          if (res.data.success && res.data.obj) {
+            this.inboundOptions = res.data.obj || [];
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      },
+      getProtocolColor(proto) {
+        if (!proto) return 'blue';
+        const p = proto.toLowerCase();
+        if (p === 'vless') return 'blue';
+        if (p === 'vmess') return 'cyan';
+        if (p === 'trojan') return 'green';
+        if (p === 'hysteria' || p === 'hysteria2') return 'purple';
+        if (p === 'shadowsocks') return 'orange';
+        return 'geekblue';
+      },
+      getTrafficPercent(record) {
+        const total = record.total || (record.totalGB ? record.totalGB * 1024 * 1024 * 1024 : 0);
+        if (!total || total <= 0) return 0;
+        const used = record.up + record.down;
+        const pct = Math.round((used / total) * 100);
+        return Math.min(100, Math.max(0, pct));
+      },
+      getTrafficStatus(record) {
+        if (!record.enable) return 'normal';
+        const total = record.total || (record.totalGB ? record.totalGB * 1024 * 1024 * 1024 : 0);
+        if (total > 0 && record.up + record.down >= total) return 'exception';
+        return 'active';
+      },
+      getTrafficColor(record) {
+        const pct = this.getTrafficPercent(record);
+        if (pct >= 90) return '#ff4d4f';
+        if (pct >= 70) return '#faad14';
+        return '#1890ff';
+      },
+      formatDate(ts) {
+        if (!ts || ts <= 0) return '-';
+        return moment(ts).format('YYYY-MM-DD HH:mm');
+      },
+      getExpiryLabel(record) {
+        if (!record.expiryTime || record.expiryTime <= 0) return '无限期';
+        const now = new Date().getTime();
+        const diffDays = Math.ceil((record.expiryTime - now) / 86400000);
+        if (diffDays <= 0) return '已过期';
+        return `剩余 ${diffDays} 天`;
+      },
+      getExpiryTagColor(record) {
+        if (!record.expiryTime || record.expiryTime <= 0) return 'blue';
+        const now = new Date().getTime();
+        if (record.expiryTime <= now) return 'red';
+        const diffDays = Math.ceil((record.expiryTime - now) / 86400000);
+        if (diffDays <= 3) return 'orange';
+        return 'green';
+      },
+      async toggleEnable(record) {
+        this.$set(record, '_toggling', true);
+        const targetState = !record.enable;
+        try {
+          const res = await axios.post(`/panel/api/clients/toggle/${encodeURIComponent(record.email)}`, {
+            enable: targetState,
+          });
+          if (res.data.success) {
+            record.enable = targetState;
+            this.$message.success('状态更新成功');
+          } else {
+            this.$message.error(res.data.msg || '更新失败');
+          }
+        } catch (e) {
+          this.$message.error('网络请求失败');
+        } finally {
+          this.$set(record, '_toggling', false);
+        }
+      },
+      async resetTraffic(record) {
+        try {
+          const res = await axios.post(`/panel/api/clients/resetTraffic/${encodeURIComponent(record.email)}`);
+          if (res.data.success) {
+            this.$message.success('流量已重置');
+            record.up = 0;
+            record.down = 0;
+          } else {
+            this.$message.error(res.data.msg || '重置失败');
+          }
+        } catch (e) {
+          this.$message.error('网络请求失败');
+        }
+      },
+      async deleteClient(record) {
+        try {
+          const res = await axios.post(`/panel/api/clients/del/${encodeURIComponent(record.email)}`);
+          if (res.data.success) {
+            this.$message.success('客户端已删除');
+            this.fetchData();
+          } else {
+            this.$message.error(res.data.msg || '删除失败');
+          }
+        } catch (e) {
+          this.$message.error('删除请求失败');
+        }
+      },
+      openAddModal() {
+        this.formModal.isEdit = false;
+        this.formModal.oldEmail = '';
+        this.formModal.inboundIds = this.inboundOptions.map(o => o.id);
+        this.formModal.expiryMoment = moment().add(1, 'month');
+        this.formModal.client = {
+          email: '',
+          subId: RandomUtil.randomLowerAndNum(16),
+          id: RandomUtil.randomUUID(),
+          password: RandomUtil.randomSeq(12),
+          auth: RandomUtil.randomSeq(12),
+          totalGB: 50,
+          expiryTime: this.formModal.expiryMoment.valueOf(),
+          limitIp: 2,
+          comment: '',
+          enable: true,
+        };
+        this.generateEmail();
+        this.formModal.visible = true;
+      },
+      openEditModal(record) {
+        this.formModal.isEdit = true;
+        this.formModal.oldEmail = record.email;
+        this.formModal.inboundIds = [...(record.inboundIds || [])];
+        this.formModal.expiryMoment = record.expiryTime > 0 ? moment(record.expiryTime) : null;
+        this.formModal.client = {
+          email: record.email,
+          subId: record.subId || RandomUtil.randomLowerAndNum(16),
+          id: record.id || RandomUtil.randomUUID(),
+          password: record.password || RandomUtil.randomSeq(12),
+          auth: record.auth || RandomUtil.randomSeq(12),
+          totalGB: record.totalGB > 0 ? record.totalGB : (record.total > 0 ? Math.round(record.total / (1024 * 1024 * 1024)) : 0),
+          expiryTime: record.expiryTime || 0,
+          limitIp: record.limitIp || 2,
+          comment: record.comment || '',
+          enable: record.enable,
+        };
+        this.formModal.visible = true;
+      },
+      generateAllCredentials() {
+        this.formModal.client.id = RandomUtil.randomUUID();
+        this.formModal.client.password = RandomUtil.randomSeq(12);
+        this.formModal.client.auth = RandomUtil.randomSeq(12);
+        this.$message.success('已自动生成全部凭据');
+      },
+      generateEmail() {
+        const host = window.location.hostname || 'NODE';
+        const prefix = host.split('.')[0].toUpperCase();
+        const now = moment().format('YYMMDDHHmm');
+        const exp = this.formModal.expiryMoment ? `${this.formModal.expiryMoment.month() + 1}.${this.formModal.expiryMoment.date()}` : '0.0';
+        this.formModal.client.email = `${prefix}:${now}-${exp}`;
+      },
+      selectTrafficQuick(gb) {
+        this.formModal.client.totalGB = gb;
+        this.onTrafficChange(gb);
+      },
+      onTrafficChange(gb) {
+        const months = { 50: 1, 150: 3, 300: 6, 600: 12 }[Number(gb)];
+        if (months) {
+          this.formModal.expiryMoment = moment().add(months, 'month');
+          if (!this.formModal.isEdit) {
+            this.generateEmail();
+          }
+        }
+      },
+      async submitForm() {
+        if (!this.formModal.client.email) {
+          return this.$message.error('请填写客户端邮箱');
+        }
+        if (!this.formModal.inboundIds || this.formModal.inboundIds.length === 0) {
+          return this.$message.error('请至少选择一个关联入站');
+        }
+
+        this.formModal.loading = true;
+        try {
+          const payloadClient = { ...this.formModal.client };
+          payloadClient.expiryTime = this.formModal.expiryMoment ? this.formModal.expiryMoment.valueOf() : 0;
+
+          const url = this.formModal.isEdit 
+            ? `/panel/api/clients/update/${encodeURIComponent(this.formModal.oldEmail)}` 
+            : '/panel/api/clients/add';
+
+          const res = await axios.post(url, {
+            client: payloadClient,
+            inboundIds: this.formModal.inboundIds,
+          });
+
+          if (res.data.success) {
+            this.$message.success(this.formModal.isEdit ? '修改客户端成功' : '添加客户端成功');
+            this.formModal.visible = false;
+            this.fetchData();
+          } else {
+            this.$message.error(res.data.msg || '保存失败');
+          }
+        } catch (e) {
+          this.$message.error('提交请求失败');
+        } finally {
+          this.formModal.loading = false;
+        }
+      },
+      buildSubUrl(subId) {
+        const protocol = window.location.protocol;
+        const host = window.location.host;
+        const bp = (typeof basePath !== 'undefined' ? basePath : '/').replace(/\/+$/, '') + '/';
+        return `${protocol}//${host}${bp}sub/${subId}`;
+      },
+      buildClashUrl(subId) {
+        const protocol = window.location.protocol;
+        const host = window.location.host;
+        const bp = (typeof basePath !== 'undefined' ? basePath : '/').replace(/\/+$/, '') + '/';
+        return `${protocol}//${host}${bp}sub/clash/${subId}`;
+      },
+      copySubLink(record) {
+        if (!record.subId) return this.$message.warning('该客户端暂无 SubID');
+        this.copyText(this.buildSubUrl(record.subId));
+      },
+      copyClashLink(record) {
+        if (!record.subId) return this.$message.warning('该客户端暂无 SubID');
+        this.copyText(this.buildClashUrl(record.subId));
+      },
+      openQrModal(record) {
+        this.qrModal.email = record.email;
+        this.qrModal.subId = record.subId;
+        this.qrModal.subUrl = this.buildSubUrl(record.subId);
+        this.qrModal.subClashUrl = this.buildClashUrl(record.subId);
+        this.qrModal.nodeLinks = record.links || [];
+        this.qrModal.visible = true;
+
+        this.$nextTick(() => {
+          this.renderQrCode('client-sub-qrcode', this.qrModal.subUrl);
+          this.renderQrCode('client-clash-qrcode', this.qrModal.subClashUrl);
+        });
+      },
+      renderQrCode(canvasId, text) {
+        const canvas = document.getElementById(canvasId);
+        if (canvas && typeof QRious !== 'undefined') {
+          new QRious({
+            element: canvas,
+            value: text,
+            size: 200,
+          });
+        }
+      },
+      async openIpsModal(record) {
+        this.ipsModal.email = record.email;
+        this.ipsModal.ips = [];
+        this.ipsModal.visible = true;
+        try {
+          const res = await axios.post(`/panel/api/clients/ips/${encodeURIComponent(record.email)}`);
+          if (res.data.success && res.data.obj) {
+            const raw = res.data.obj;
+            this.ipsModal.ips = typeof raw === 'string' ? raw.split(',').filter(Boolean) : (Array.isArray(raw) ? raw : []);
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      },
+      async clearClientIps() {
+        try {
+          const res = await axios.post(`/panel/api/clients/clearIps/${encodeURIComponent(this.ipsModal.email)}`);
+          if (res.data.success) {
+            this.$message.success('已清空 IP');
+            this.ipsModal.ips = [];
+          }
+        } catch (e) {
+          this.$message.error('操作失败');
+        }
+      },
+      copyText(txt) {
+        if (!txt) return;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(txt).then(() => {
+            this.$message.success('已复制到剪贴板');
+          }).catch(() => {
+            this.fallbackCopy(txt);
+          });
+        } else {
+          this.fallbackCopy(txt);
+        }
+      },
+      fallbackCopy(txt) {
+        const input = document.createElement('textarea');
+        input.value = txt;
+        document.body.appendChild(input);
+        input.select();
+        document.execCommand('copy');
+        document.body.removeChild(input);
+        this.$message.success('已复制到剪贴板');
+      },
+    },
+  });
+</script>
+{{ template "page/body_end" .}}

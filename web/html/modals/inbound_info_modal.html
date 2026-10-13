@@ -519,7 +519,8 @@
           Protocols.VMESS, 
           Protocols.VLESS,
           Protocols.TROJAN, 
-          Protocols.SHADOWSOCKS
+          Protocols.SHADOWSOCKS,
+          Protocols.HYSTERIA
         ].includes(this.inbound.protocol)
       ) {
         if (app.ipLimitEnable && this.clientSettings.limitIp) {

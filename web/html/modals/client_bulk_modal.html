@@ -46,7 +46,7 @@
                         <span>{{ i18n "pages.inbounds.subscriptionDesc" }}</span>
                     </template>
                     Subscription
-                    <a-icon @click="clientsBulkModal.subId = RandomUtil.randomLowerAndNum(16)" type="sync"></a-icon>
+                    <a-icon @click="clientsBulkModal.subId = clientsBulkModal.getDefaultSubscriptionTitle()" type="sync"></a-icon>
                 </a-tooltip>
             </template>
             <a-input v-model.trim="clientsBulkModal.subId"></a-input>
@@ -174,6 +174,8 @@
                 newClient._expiryTime = clientsBulkModal.expiryTime;
                 if (clientsBulkModal.inbound.canEnableTlsFlow()) {
                     newClient.flow = clientsBulkModal.flow;
+                } else {
+                    newClient.flow = "";
                 }
                 newClient.reset = clientsBulkModal.reset;
                 clients.push(newClient);
@@ -199,12 +201,12 @@
             this.lastNum = 1;
             this.emailPrefix = "";
             this.emailPostfix = "";
-            this.subId = "";
             this.tgId = '';
             this.security = "auto";
-            this.flow = "";
             this.dbInbound = new DBInbound(dbInbound);
             this.inbound = dbInbound.toInbound();
+            this.subId = this.getDefaultSubscriptionTitle();
+            this.flow = this.inbound.defaultVlessFlow();
             this.delayedStart = false;
             this.reset = 0;
         },
@@ -214,8 +216,25 @@
                 case Protocols.VLESS: return new Inbound.VLESSSettings.VLESS();
                 case Protocols.TROJAN: return new Inbound.TrojanSettings.Trojan();
                 case Protocols.SHADOWSOCKS: return new Inbound.ShadowsocksSettings.Shadowsocks(clientsBulkModal.inbound.settings.shadowsockses[0].method);
+                case Protocols.HYSTERIA: return new Inbound.HysteriaSettings.Hysteria();
                 default: return null;
             }
+        },
+        getDefaultSubscriptionBaseTitle() {
+            if (!app.subSettings?.enable) return "";
+            const configured = app.subSettings?.subTitle || "";
+            if (configured.trim().length > 0) return configured.trim();
+            const host = (app.defaultDomain || window.location.hostname || "").split(":")[0].toLowerCase();
+            const parts = host.split(".").filter(Boolean);
+            if (parts.length === 0) return "";
+            if (parts.length === 1) return parts[0].toUpperCase();
+            return `${parts[0]}-${parts[parts.length - 1]}`.toUpperCase();
+        },
+        getDefaultSubscriptionTitle() {
+            const baseTitle = this.getDefaultSubscriptionBaseTitle();
+            const port = this.inbound ? this.inbound.port : "";
+            if (!baseTitle) return "";
+            return port ? `${baseTitle}-${port}` : baseTitle;
         },
         close() {
             clientsBulkModal.visible = false;

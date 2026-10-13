@@ -21,7 +21,13 @@ const (
 	Shadowsocks Protocol = "shadowsocks"
 	Mixed       Protocol = "mixed"
 	WireGuard   Protocol = "wireguard"
+	Hysteria    Protocol = "hysteria"
+	Hysteria2   Protocol = "hysteria2"
 )
+
+func IsHysteria(p Protocol) bool {
+	return p == Hysteria || p == Hysteria2
+}
 
 // User represents a user account in the 3x-ui panel.
 type User struct {
@@ -109,6 +115,7 @@ type Client struct {
 	ID         string `json:"id"`                           // Unique client identifier
 	Security   string `json:"security"`                     // Security method (e.g., "auto", "aes-128-gcm")
 	Password   string `json:"password"`                     // Client password
+	Auth       string `json:"auth,omitempty"`               // Auth password (Hysteria)
 	Flow       string `json:"flow"`                         // Flow control (XTLS)
 	Email      string `json:"email"`                        // Client email identifier
 	LimitIP    int    `json:"limitIp"`                      // IP limit for this client

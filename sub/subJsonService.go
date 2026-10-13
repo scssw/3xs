@@ -72,6 +72,7 @@ func NewSubJsonService(fragment string, noises string, mux string, rules string,
 
 // GetJson generates a JSON subscription configuration for the given subscription ID and host.
 func (s *SubJsonService) GetJson(subId string, host string) (string, string, error) {
+	s.SubService.address = host
 	inbounds, err := s.SubService.getInboundsBySubId(subId)
 	if err != nil || len(inbounds) == 0 {
 		return "", "", err
@@ -151,13 +152,18 @@ func (s *SubJsonService) GetJson(subId string, host string) (string, string, err
 func (s *SubJsonService) getConfig(inbound *model.Inbound, client model.Client, host string) []json_util.RawMessage {
 	var newJsonArray []json_util.RawMessage
 	stream := s.streamData(inbound.StreamSettings)
+	boundAddress := s.SubService.getBoundAddress()
 
 	externalProxies, ok := stream["externalProxy"].([]any)
 	if !ok || len(externalProxies) == 0 {
+		dest := host
+		if boundAddress != "" {
+			dest = boundAddress
+		}
 		externalProxies = []any{
 			map[string]any{
 				"forceTls": "same",
-				"dest":     host,
+				"dest":     dest,
 				"port":     float64(inbound.Port),
 				"remark":   "",
 			},
@@ -169,6 +175,9 @@ func (s *SubJsonService) getConfig(inbound *model.Inbound, client model.Client, 
 	for _, ep := range externalProxies {
 		extPrxy := ep.(map[string]any)
 		inbound.Listen = extPrxy["dest"].(string)
+		if boundAddress != "" {
+			inbound.Listen = boundAddress
+		}
 		inbound.Port = int(extPrxy["port"].(float64))
 		newStream := stream
 		switch extPrxy["forceTls"].(string) {
@@ -194,6 +203,8 @@ func (s *SubJsonService) getConfig(inbound *model.Inbound, client model.Client, 
 			newOutbounds = append(newOutbounds, s.genVless(inbound, streamSettings, client))
 		case "trojan", "shadowsocks":
 			newOutbounds = append(newOutbounds, s.genServer(inbound, streamSettings, client))
+		case "hysteria", "hysteria2":
+			newOutbounds = append(newOutbounds, s.genHy(inbound, newStream, client))
 		}
 
 		newOutbounds = append(newOutbounds, s.defaultOutbounds...)
@@ -271,8 +282,12 @@ func (s *SubJsonService) realityData(rData map[string]any) map[string]any {
 	rltyData["fingerprint"] = rltyClientSettings["fingerprint"]
 	rltyData["mldsa65Verify"] = rltyClientSettings["mldsa65Verify"]
 
-	// Set random data
-	rltyData["spiderX"] = "/" + random.Seq(15)
+	if spiderX, ok := rltyClientSettings["spiderX"].(string); ok && spiderX != "" {
+		rltyData["spiderX"] = spiderX
+	} else {
+		rltyData["spiderX"] = "/" + random.Seq(15)
+	}
+
 	shortIds, ok := rData["shortIds"].([]any)
 	if ok && len(shortIds) > 0 {
 		rltyData["shortId"] = shortIds[random.Num(len(shortIds))].(string)
@@ -380,6 +395,44 @@ func (s *SubJsonService) genServer(inbound *model.Inbound, streamSettings json_u
 		"servers": serverData,
 	}
 
+	result, _ := json.MarshalIndent(outbound, "", "  ")
+	return result
+}
+
+func (s *SubJsonService) genHy(inbound *model.Inbound, newStream map[string]any, client model.Client) json_util.RawMessage {
+	outbound := Outbound{}
+	outbound.Protocol = string(inbound.Protocol)
+	outbound.Tag = "proxy"
+	if s.mux != "" {
+		outbound.Mux = json_util.RawMessage(s.mux)
+	}
+
+	var settings, stream map[string]any
+	json.Unmarshal([]byte(inbound.Settings), &settings)
+	version, _ := settings["version"].(float64)
+	outbound.Settings = map[string]any{
+		"version": int(version),
+		"address": s.SubService.resolveAddress(inbound),
+		"port":    inbound.Port,
+	}
+
+	json.Unmarshal([]byte(inbound.StreamSettings), &stream)
+	hyStream, _ := stream["hysteriaSettings"].(map[string]any)
+	outHyStream := map[string]any{
+		"version": int(version),
+		"auth":    client.Auth,
+	}
+	if udpIdleTimeout, ok := hyStream["udpIdleTimeout"].(float64); ok {
+		outHyStream["udpIdleTimeout"] = int(udpIdleTimeout)
+	}
+	newStream["hysteriaSettings"] = outHyStream
+	newStream["network"] = "hysteria"
+	newStream["security"] = "tls"
+	if finalmask, ok := stream["finalmask"].(map[string]any); ok {
+		newStream["finalmask"] = finalmask
+	}
+
+	outbound.StreamSettings, _ = json.MarshalIndent(newStream, "", "  ")
 	result, _ := json.MarshalIndent(outbound, "", "  ")
 	return result
 }

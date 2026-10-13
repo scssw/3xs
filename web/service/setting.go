@@ -70,6 +70,10 @@ var defaultValueMap = map[string]string{
 	"subURI":                      "",
 	"subJsonPath":                 "/json/",
 	"subJsonURI":                  "",
+	"subClashEnable":              "true",
+	"subClashPath":                "/clash/",
+	"subClashURI":                 "",
+	"inboundBindAddress":          "",
 	"subJsonFragment":             "",
 	"subJsonNoises":               "",
 	"subJsonMux":                  "",
@@ -184,6 +188,11 @@ func (s *SettingService) GetAllSetting() (*entity.AllSetting, error) {
 		if err != nil {
 			return nil, err
 		}
+	}
+
+	fillSubCertFromWebCert(allSetting)
+	if allSetting.SubTitle == "" {
+		allSetting.SubTitle = defaultSubTitleFromDomain(firstNonEmpty(allSetting.SubDomain, allSetting.WebDomain))
 	}
 
 	return allSetting, nil
@@ -461,7 +470,12 @@ func (s *SettingService) GetSubJsonEnable() (bool, error) {
 }
 
 func (s *SettingService) GetSubTitle() (string, error) {
-	return s.getString("subTitle")
+	title, err := s.getString("subTitle")
+	if err != nil || title != "" {
+		return title, err
+	}
+	domain, _ := s.GetSubDomain()
+	return defaultSubTitleFromDomain(domain), nil
 }
 
 func (s *SettingService) GetSubSupportUrl() (string, error) {
@@ -542,6 +556,26 @@ func (s *SettingService) GetSubURI() (string, error) {
 
 func (s *SettingService) GetSubJsonURI() (string, error) {
 	return s.getString("subJsonURI")
+}
+
+func (s *SettingService) GetSubClashEnable() (bool, error) {
+	return s.getBool("subClashEnable")
+}
+
+func (s *SettingService) GetSubClashPath() (string, error) {
+	return s.getString("subClashPath")
+}
+
+func (s *SettingService) GetSubClashURI() (string, error) {
+	return s.getString("subClashURI")
+}
+
+func (s *SettingService) GetInboundBindAddress() (string, error) {
+	return s.getString("inboundBindAddress")
+}
+
+func (s *SettingService) SetInboundBindAddress(address string) error {
+	return s.setString("inboundBindAddress", address)
 }
 
 func (s *SettingService) GetSubJsonFragment() (string, error) {
@@ -678,6 +712,11 @@ func (s *SettingService) GetLdapDefaultLimitIP() (int, error) {
 }
 
 func (s *SettingService) UpdateAllSetting(allSetting *entity.AllSetting) error {
+	fillSubCertFromWebCert(allSetting)
+	if allSetting.SubTitle == "" {
+		allSetting.SubTitle = defaultSubTitleFromDomain(firstNonEmpty(allSetting.SubDomain, allSetting.WebDomain))
+	}
+
 	if err := allSetting.CheckValid(); err != nil {
 		return err
 	}
@@ -698,6 +737,15 @@ func (s *SettingService) UpdateAllSetting(allSetting *entity.AllSetting) error {
 	return common.Combine(errs...)
 }
 
+func fillSubCertFromWebCert(allSetting *entity.AllSetting) {
+	if allSetting.SubCertFile == "" {
+		allSetting.SubCertFile = allSetting.WebCertFile
+	}
+	if allSetting.SubKeyFile == "" {
+		allSetting.SubKeyFile = allSetting.WebKeyFile
+	}
+}
+
 func (s *SettingService) GetDefaultXrayConfig() (any, error) {
 	var jsonData any
 	err := json.Unmarshal([]byte(xrayTemplateConfig), &jsonData)
@@ -715,12 +763,20 @@ func (s *SettingService) GetDefaultSettings(host string) (any, error) {
 		"pageSize":      func() (any, error) { return s.GetPageSize() },
 		"defaultCert":   func() (any, error) { return s.GetCertFile() },
 		"defaultKey":    func() (any, error) { return s.GetKeyFile() },
+		"defaultDomain": func() (any, error) { return s.GetWebDomain() },
 		"tgBotEnable":   func() (any, error) { return s.GetTgbotEnabled() },
 		"subEnable":     func() (any, error) { return s.GetSubEnable() },
 		"subJsonEnable": func() (any, error) { return s.GetSubJsonEnable() },
-		"subTitle":      func() (any, error) { return s.GetSubTitle() },
-		"subURI":        func() (any, error) { return s.GetSubURI() },
-		"subJsonURI":    func() (any, error) { return s.GetSubJsonURI() },
+		"subClashEnable": func() (any, error) {
+			return s.GetSubClashEnable()
+		},
+		"subTitle":    func() (any, error) { return s.GetSubTitle() },
+		"subURI":      func() (any, error) { return s.GetSubURI() },
+		"subJsonURI":  func() (any, error) { return s.GetSubJsonURI() },
+		"subClashURI": func() (any, error) { return s.GetSubClashURI() },
+		"inboundBindAddress": func() (any, error) {
+			return s.GetInboundBindAddress()
+		},
 		"remarkModel":   func() (any, error) { return s.GetRemarkModel() },
 		"datepicker":    func() (any, error) { return s.GetDatepicker() },
 		"ipLimitEnable": func() (any, error) { return s.GetIpLimitEnable() },
@@ -735,6 +791,9 @@ func (s *SettingService) GetDefaultSettings(host string) (any, error) {
 		}
 		result[key] = value
 	}
+	if result["defaultDomain"].(string) == "" {
+		result["defaultDomain"] = strings.Split(host, ":")[0]
+	}
 
 	subEnable := result["subEnable"].(bool)
 	subJsonEnable := false
@@ -743,12 +802,19 @@ func (s *SettingService) GetDefaultSettings(host string) (any, error) {
 			subJsonEnable = b
 		}
 	}
-	if (subEnable && result["subURI"].(string) == "") || (subJsonEnable && result["subJsonURI"].(string) == "") {
+	subClashEnable := false
+	if v, ok := result["subClashEnable"]; ok {
+		if b, ok2 := v.(bool); ok2 {
+			subClashEnable = b
+		}
+	}
+	if (subEnable && result["subURI"].(string) == "") || (subJsonEnable && result["subJsonURI"].(string) == "") || (subClashEnable && result["subClashURI"].(string) == "") {
 		subURI := ""
 		subTitle, _ := s.GetSubTitle()
 		subPort, _ := s.GetSubPort()
 		subPath, _ := s.GetSubPath()
 		subJsonPath, _ := s.GetSubJsonPath()
+		subClashPath, _ := s.GetSubClashPath()
 		subDomain, _ := s.GetSubDomain()
 		subKeyFile, _ := s.GetSubKeyFile()
 		subCertFile, _ := s.GetSubCertFile()
@@ -778,7 +844,47 @@ func (s *SettingService) GetDefaultSettings(host string) (any, error) {
 		if subJsonEnable && result["subJsonURI"].(string) == "" {
 			result["subJsonURI"] = subURI + subJsonPath
 		}
+		if subClashEnable && result["subClashURI"].(string) == "" {
+			result["subClashURI"] = subURI + subClashPath
+		}
+	}
+	if result["subTitle"].(string) == "" {
+		result["subTitle"] = defaultSubTitleFromDomain(result["defaultDomain"].(string))
 	}
 
 	return result, nil
+}
+
+func defaultSubTitleFromDomain(domain string) string {
+	host := strings.TrimSpace(strings.ToLower(domain))
+	if host == "" {
+		return ""
+	}
+	host = strings.TrimPrefix(host, "http://")
+	host = strings.TrimPrefix(host, "https://")
+	if idx := strings.Index(host, "/"); idx >= 0 {
+		host = host[:idx]
+	}
+	if idx := strings.Index(host, ":"); idx >= 0 {
+		host = host[:idx]
+	}
+	host = strings.Trim(host, ".")
+	if host == "" {
+		return ""
+	}
+	parts := strings.Split(host, ".")
+	if len(parts) == 1 {
+		return strings.ToUpper(parts[0])
+	}
+	return strings.ToUpper(parts[0] + "-" + parts[len(parts)-1])
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value != "" {
+			return value
+		}
+	}
+	return ""
 }
