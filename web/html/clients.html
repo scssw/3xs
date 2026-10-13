@@ -670,10 +670,15 @@
           this.$message.error('删除请求失败');
         }
       },
-      openAddModal() {
+      async openAddModal() {
+        if (!this.inboundOptions || this.inboundOptions.length === 0) {
+          await this.fetchOptions();
+        }
         this.formModal.isEdit = false;
         this.formModal.oldEmail = '';
-        this.formModal.inboundIds = this.inboundOptions.map(o => o.id);
+        // 默认只勾选最新两个入站
+        const sortedInbounds = [...(this.inboundOptions || [])].sort((a, b) => b.id - a.id);
+        this.formModal.inboundIds = sortedInbounds.slice(0, 2).map(o => o.id);
         this.formModal.expiryMoment = moment().add(1, 'month');
         this.formModal.client = {
           email: '',
@@ -690,7 +695,10 @@
         this.generateEmail();
         this.formModal.visible = true;
       },
-      openEditModal(record) {
+      async openEditModal(record) {
+        if (!this.inboundOptions || this.inboundOptions.length === 0) {
+          await this.fetchOptions();
+        }
         this.formModal.isEdit = true;
         this.formModal.oldEmail = record.email;
         this.formModal.inboundIds = [...(record.inboundIds || [])];
@@ -753,7 +761,7 @@
             : '/panel/api/clients/add';
 
           const res = await axios.post(url, {
-            client: payloadClient,
+            client: JSON.stringify(payloadClient),
             inboundIds: this.formModal.inboundIds,
           });
 

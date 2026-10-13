@@ -3,8 +3,13 @@ axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
 
 axios.interceptors.request.use(
     (config) => {
+        const contentType = (config.headers && (config.headers['Content-Type'] || config.headers['content-type'])) || '';
         if (config.data instanceof FormData) {
             config.headers['Content-Type'] = 'multipart/form-data';
+        } else if (typeof contentType === 'string' && contentType.includes('application/json')) {
+            if (typeof config.data !== 'string') {
+                config.data = JSON.stringify(config.data);
+            }
         } else {
             config.data = Qs.stringify(config.data, {
                 arrayFormat: 'repeat',
