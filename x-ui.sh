@@ -1,4 +1,4 @@
-﻿#!/bin/bash
+#!/bin/bash
 
 red='\033[0;31m'
 green='\033[0;32m'
@@ -255,8 +255,8 @@ update() {
 }
 
 update_menu() {
-    echo -e "${yellow}姝ｅ湪鏇存柊鑿滃崟${plain}"
-    confirm "姝ゅ姛鑳藉皢鎶婅彍鍗曟洿鏂板埌鏈€鏂扮増鏈紝鏄惁缁х画锛? "y"
+    echo -e "${yellow}更新菜单${plain}"
+    confirm "此功能将更新菜单到最新版本，是否继续？" "y"
     if [[ $? != 0 ]]; then
         LOGE "Cancelled"
         if [[ $# == 0 ]]; then
@@ -265,15 +265,15 @@ update_menu() {
         return 0
     fi
 
-    curl -fLRo /usr/bin/x-ui https://raw.githubusercontent.com/MHSanaei/3x-ui/main/x-ui.sh
+    curl -fLRo /usr/bin/x-ui https://raw.githubusercontent.com/scssw/3xs/main/x-ui.sh
     chmod +x ${xui_folder}/x-ui.sh
     chmod +x /usr/bin/x-ui
 
     if [[ $? == 0 ]]; then
-        echo -e "${green}Update successful. The panel has automatically restarted.${plain}"
+        echo -e "${green}更新成功，面板已自动重启。${plain}"
         exit 0
     else
-        echo -e "${red}鏇存柊鑿滃崟澶辫触銆?{plain}"
+        echo -e "${red}更新菜单失败。${plain}"
         return 1
     fi
 }
