@@ -167,13 +167,39 @@ func (x *XrayAPI) AddUser(Protocol string, inboundTag string, user map[string]an
 				Email: user["email"].(string),
 			})
 		}
+	case "hysteria", "hysteria2":
+		auth, _ := user["auth"].(string)
+		if auth == "" {
+			return common.NewError("empty auth for hysteria")
+		}
+		// Protobuf wire format for xray.proxy.hysteria.account.Account { string auth = 1; }
+		authBytes := []byte(auth)
+		buf := make([]byte, 0, len(authBytes)+4)
+		buf = append(buf, 0x0A) // field 1, wire type 2 (length-delimited)
+		l := len(authBytes)
+		for l >= 1<<7 {
+			buf = append(buf, uint8(l&0x7f|0x80))
+			l >>= 7
+		}
+		buf = append(buf, uint8(l))
+		buf = append(buf, authBytes...)
+		account = &serial.TypedMessage{
+			Type:  "xray.proxy.hysteria.account.Account",
+			Value: buf,
+		}
 	default:
-		return nil
+		return common.NewErrorf("protocol %s does not support dynamic AddUser", Protocol)
 	}
 
+	if x.HandlerServiceClient == nil {
+		return common.NewError("xray HandlerServiceClient is not initialized")
+	}
 	client := *x.HandlerServiceClient
 
-	_, err := client.AlterInbound(context.Background(), &command.AlterInboundRequest{
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	_, err := client.AlterInbound(ctx, &command.AlterInboundRequest{
 		Tag: inboundTag,
 		Operation: serial.ToTypedMessage(&command.AddUserOperation{
 			User: &protocol.User{
@@ -187,6 +213,9 @@ func (x *XrayAPI) AddUser(Protocol string, inboundTag string, user map[string]an
 
 // RemoveUser removes a user from an inbound in the Xray core by email.
 func (x *XrayAPI) RemoveUser(inboundTag, email string) error {
+	if x.HandlerServiceClient == nil {
+		return common.NewError("xray HandlerServiceClient is not initialized")
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 

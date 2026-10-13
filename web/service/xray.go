@@ -5,6 +5,7 @@ import (
 	"errors"
 	"runtime"
 	"sync"
+	"time"
 
 	"github.com/mhsanaei/3x-ui/v2/logger"
 	"github.com/mhsanaei/3x-ui/v2/xray"
@@ -255,9 +256,18 @@ func (s *XrayService) StopXray() error {
 	return errors.New("xray is not running")
 }
 
-// SetToNeedRestart marks that Xray needs to be restarted.
+// SetToNeedRestart marks that Xray needs to be restarted and triggers a debounced restart.
 func (s *XrayService) SetToNeedRestart() {
 	isNeedXrayRestart.Store(true)
+	go func() {
+		time.Sleep(300 * time.Millisecond)
+		if s.IsNeedRestartAndSetFalse() {
+			if err := s.RestartXray(true); err != nil {
+				logger.Error("restart xray failed:", err)
+				isNeedXrayRestart.Store(true)
+			}
+		}
+	}()
 }
 
 // IsNeedRestartAndSetFalse checks if restart is needed and resets the flag to false.

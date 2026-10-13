@@ -658,36 +658,51 @@ func (s *InboundService) AddInboundClient(data *model.Inbound) (bool, error) {
 	}()
 
 	needRestart := false
-	s.xrayApi.Init(p.GetAPIPort())
-	for _, client := range clients {
-		if len(client.Email) > 0 {
-			s.AddClientStat(tx, data.Id, &client)
-			if client.Enable {
-				cipher := ""
-				if oldInbound.Protocol == "shadowsocks" {
-					cipher = oldSettings["method"].(string)
-				}
-				err1 := s.xrayApi.AddUser(string(oldInbound.Protocol), oldInbound.Tag, map[string]any{
-					"email":    client.Email,
-					"id":       client.ID,
-					"auth":     client.Auth,
-					"security": client.Security,
-					"flow":     client.Flow,
-					"password": client.Password,
-					"cipher":   cipher,
-				})
-				if err1 == nil {
-					logger.Debug("Client added by api:", client.Email)
-				} else {
-					logger.Debug("Error in adding client by api:", err1)
-					needRestart = true
-				}
-			}
-		} else {
-			needRestart = true
-		}
+	apiPort := 0
+	if p != nil {
+		apiPort = p.GetAPIPort()
 	}
-	s.xrayApi.Close()
+	if apiPort > 0 {
+		s.xrayApi.Init(apiPort)
+		for _, client := range clients {
+			if len(client.Email) > 0 {
+				s.AddClientStat(tx, data.Id, &client)
+				if client.Enable {
+					cipher := ""
+					if oldInbound.Protocol == "shadowsocks" {
+						if m, ok := oldSettings["method"].(string); ok {
+							cipher = m
+						}
+					}
+					err1 := s.xrayApi.AddUser(string(oldInbound.Protocol), oldInbound.Tag, map[string]any{
+						"email":    client.Email,
+						"id":       client.ID,
+						"auth":     client.Auth,
+						"security": client.Security,
+						"flow":     client.Flow,
+						"password": client.Password,
+						"cipher":   cipher,
+					})
+					if err1 == nil {
+						logger.Debug("Client added by api:", client.Email)
+					} else {
+						logger.Debug("Error in adding client by api:", err1)
+						needRestart = true
+					}
+				}
+			} else {
+				needRestart = true
+			}
+		}
+		s.xrayApi.Close()
+	} else {
+		for _, client := range clients {
+			if len(client.Email) > 0 {
+				s.AddClientStat(tx, data.Id, &client)
+			}
+		}
+		needRestart = true
+	}
 
 	return needRestart, tx.Save(oldInbound).Error
 }
@@ -917,43 +932,53 @@ func (s *InboundService) UpdateInboundClient(data *model.Inbound, clientId strin
 		}
 	}
 	needRestart := false
+	apiPort := 0
+	if p != nil {
+		apiPort = p.GetAPIPort()
+	}
 	if len(oldEmail) > 0 {
-		s.xrayApi.Init(p.GetAPIPort())
-		if oldClients[clientIndex].Enable {
-			err1 := s.xrayApi.RemoveUser(oldInbound.Tag, oldEmail)
-			if err1 == nil {
-				logger.Debug("Old client deleted by api:", oldEmail)
-			} else {
-				if strings.Contains(err1.Error(), fmt.Sprintf("User %s not found.", oldEmail)) {
-					logger.Debug("User is already deleted. Nothing to do more...")
+		if apiPort > 0 {
+			s.xrayApi.Init(apiPort)
+			if oldClients[clientIndex].Enable {
+				err1 := s.xrayApi.RemoveUser(oldInbound.Tag, oldEmail)
+				if err1 == nil {
+					logger.Debug("Old client deleted by api:", oldEmail)
 				} else {
-					logger.Debug("Error in deleting client by api:", err1)
+					if strings.Contains(err1.Error(), fmt.Sprintf("User %s not found.", oldEmail)) {
+						logger.Debug("User is already deleted. Nothing to do more...")
+					} else {
+						logger.Debug("Error in deleting client by api:", err1)
+						needRestart = true
+					}
+				}
+			}
+			if clients[0].Enable {
+				cipher := ""
+				if oldInbound.Protocol == "shadowsocks" {
+					if m, ok := oldSettings["method"].(string); ok {
+						cipher = m
+					}
+				}
+				err1 := s.xrayApi.AddUser(string(oldInbound.Protocol), oldInbound.Tag, map[string]any{
+					"email":    clients[0].Email,
+					"id":       clients[0].ID,
+					"auth":     clients[0].Auth,
+					"security": clients[0].Security,
+					"flow":     clients[0].Flow,
+					"password": clients[0].Password,
+					"cipher":   cipher,
+				})
+				if err1 == nil {
+					logger.Debug("Client edited by api:", clients[0].Email)
+				} else {
+					logger.Debug("Error in adding client by api:", err1)
 					needRestart = true
 				}
 			}
+			s.xrayApi.Close()
+		} else {
+			needRestart = true
 		}
-		if clients[0].Enable {
-			cipher := ""
-			if oldInbound.Protocol == "shadowsocks" {
-				cipher = oldSettings["method"].(string)
-			}
-			err1 := s.xrayApi.AddUser(string(oldInbound.Protocol), oldInbound.Tag, map[string]any{
-				"email":    clients[0].Email,
-				"id":       clients[0].ID,
-				"auth":     clients[0].Auth,
-				"security": clients[0].Security,
-				"flow":     clients[0].Flow,
-				"password": clients[0].Password,
-				"cipher":   cipher,
-			})
-			if err1 == nil {
-				logger.Debug("Client edited by api:", clients[0].Email)
-			} else {
-				logger.Debug("Error in adding client by api:", err1)
-				needRestart = true
-			}
-		}
-		s.xrayApi.Close()
 	} else {
 		logger.Debug("Client old email not found")
 		needRestart = true

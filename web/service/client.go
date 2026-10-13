@@ -388,28 +388,32 @@ func (s *ClientService) AddClient(client *model.Client, inboundIds []int) (bool,
 		}
 
 		// Add user via Xray API if enabled
-		if client.Enable && inbound.Enable && apiPort > 0 {
-			s.xrayApi.Init(apiPort)
-			cipher := ""
-			if inbound.Protocol == model.Shadowsocks {
-				if m, ok := settings["method"].(string); ok {
-					cipher = m
+		if client.Enable && inbound.Enable {
+			if apiPort > 0 {
+				s.xrayApi.Init(apiPort)
+				cipher := ""
+				if inbound.Protocol == model.Shadowsocks {
+					if m, ok := settings["method"].(string); ok {
+						cipher = m
+					}
 				}
-			}
-			err1 := s.xrayApi.AddUser(string(inbound.Protocol), inbound.Tag, map[string]any{
-				"email":    clientCopy.Email,
-				"id":       clientCopy.ID,
-				"auth":     clientCopy.Auth,
-				"security": clientCopy.Security,
-				"flow":     clientCopy.Flow,
-				"password": clientCopy.Password,
-				"cipher":   cipher,
-			})
-			if err1 != nil {
-				logger.Debug("AddUser via API error:", err1)
+				err1 := s.xrayApi.AddUser(string(inbound.Protocol), inbound.Tag, map[string]any{
+					"email":    clientCopy.Email,
+					"id":       clientCopy.ID,
+					"auth":     clientCopy.Auth,
+					"security": clientCopy.Security,
+					"flow":     clientCopy.Flow,
+					"password": clientCopy.Password,
+					"cipher":   cipher,
+				})
+				if err1 != nil {
+					logger.Debug("AddUser via API error:", err1)
+					needRestart = true
+				}
+				s.xrayApi.Close()
+			} else {
 				needRestart = true
 			}
-			s.xrayApi.Close()
 		}
 	}
 
@@ -592,6 +596,8 @@ func (s *ClientService) UpdateClient(oldEmail string, client *model.Client, targ
 					}
 				}
 				s.xrayApi.Close()
+			} else if clientCopy.Enable && inbound.Enable {
+				needRestart = true
 			}
 		} else if !containsOld && inTarget {
 			// ADD client to this inbound
@@ -622,28 +628,32 @@ func (s *ClientService) UpdateClient(oldEmail string, client *model.Client, targ
 			inbound.Settings = string(newSettings)
 			_ = db.Save(inbound).Error
 
-			if clientCopy.Enable && inbound.Enable && apiPort > 0 {
-				s.xrayApi.Init(apiPort)
-				cipher := ""
-				if inbound.Protocol == model.Shadowsocks {
-					if m, ok := settings["method"].(string); ok {
-						cipher = m
+			if clientCopy.Enable && inbound.Enable {
+				if apiPort > 0 {
+					s.xrayApi.Init(apiPort)
+					cipher := ""
+					if inbound.Protocol == model.Shadowsocks {
+						if m, ok := settings["method"].(string); ok {
+							cipher = m
+						}
 					}
-				}
-				err1 := s.xrayApi.AddUser(string(inbound.Protocol), inbound.Tag, map[string]any{
-					"email":    clientCopy.Email,
-					"id":       clientCopy.ID,
-					"auth":     clientCopy.Auth,
-					"security": clientCopy.Security,
-					"flow":     clientCopy.Flow,
-					"password": clientCopy.Password,
-					"cipher":   cipher,
-				})
-				if err1 != nil {
-					logger.Debug("AddUser via API error:", err1)
+					err1 := s.xrayApi.AddUser(string(inbound.Protocol), inbound.Tag, map[string]any{
+						"email":    clientCopy.Email,
+						"id":       clientCopy.ID,
+						"auth":     clientCopy.Auth,
+						"security": clientCopy.Security,
+						"flow":     clientCopy.Flow,
+						"password": clientCopy.Password,
+						"cipher":   cipher,
+					})
+					if err1 != nil {
+						logger.Debug("AddUser via API error:", err1)
+						needRestart = true
+					}
+					s.xrayApi.Close()
+				} else {
 					needRestart = true
 				}
-				s.xrayApi.Close()
 			}
 		}
 	}
@@ -734,6 +744,8 @@ func (s *ClientService) DeleteClient(email string) (bool, error) {
 					needRestart = true
 				}
 				s.xrayApi.Close()
+			} else {
+				needRestart = true
 			}
 		}
 	}
@@ -826,6 +838,8 @@ func (s *ClientService) ToggleEnableClient(email string, enable bool) (bool, err
 					}
 				}
 				s.xrayApi.Close()
+			} else {
+				needRestart = true
 			}
 		}
 	}
