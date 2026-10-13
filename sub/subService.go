@@ -60,6 +60,7 @@ func (s *SubService) GetSubs(subId string, host string) ([]string, int64, xray.C
 	if err != nil {
 		s.datepicker = "gregorian"
 	}
+	seenEmails := make(map[string]bool)
 	for _, inbound := range inbounds {
 		clients, err := s.inboundService.GetClients(inbound)
 		if err != nil {
@@ -86,10 +87,27 @@ func (s *SubService) GetSubs(subId string, host string) ([]string, int64, xray.C
 				}
 				link := s.getLink(inbound, client.Email)
 				result = append(result, link)
-				ct := s.getClientTraffics(inbound.ClientStats, client.Email)
-				clientTraffics = append(clientTraffics, ct)
-				if ct.LastOnline > lastOnline {
-					lastOnline = ct.LastOnline
+				if !seenEmails[client.Email] {
+					seenEmails[client.Email] = true
+					ct := s.getClientTraffics(inbound.ClientStats, client.Email)
+					if ct.Email == "" || (ct.Total == 0 && ct.ExpiryTime == 0 && (client.TotalGB > 0 || client.ExpiryTime > 0)) {
+						ct.Email = client.Email
+						tot := client.TotalGB
+						if tot > 0 && tot < 1024*1024 {
+							tot = tot * 1024 * 1024 * 1024
+						}
+						if ct.Total == 0 {
+							ct.Total = tot
+						}
+						if ct.ExpiryTime == 0 {
+							ct.ExpiryTime = client.ExpiryTime
+						}
+						ct.Enable = client.Enable
+					}
+					clientTraffics = append(clientTraffics, ct)
+					if ct.LastOnline > lastOnline {
+						lastOnline = ct.LastOnline
+					}
 				}
 			}
 		}
@@ -142,6 +160,11 @@ func (s *SubService) getClientTraffics(traffics []xray.ClientTraffic, email stri
 	for _, traffic := range traffics {
 		if traffic.Email == email {
 			return traffic
+		}
+	}
+	if email != "" {
+		if ct, err := s.inboundService.GetClientTrafficByEmail(email); err == nil && ct != nil {
+			return *ct
 		}
 	}
 	return xray.ClientTraffic{}
@@ -1094,6 +1117,46 @@ func (s *SubService) genRemark(inbound *model.Inbound, email string, extra strin
 				stats = clientStat
 				statsExist = true
 				break
+			}
+		}
+
+		if !statsExist && email != "" {
+			stats = s.getClientTraffics(inbound.ClientStats, email)
+			if stats.Email != "" {
+				statsExist = true
+			}
+		}
+
+		if statsExist && stats.Total == 0 && stats.ExpiryTime == 0 {
+			if clients, err := s.inboundService.GetClients(inbound); err == nil {
+				for _, c := range clients {
+					if c.Email == email {
+						tot := c.TotalGB
+						if tot > 0 && tot < 1024*1024 {
+							tot = tot * 1024 * 1024 * 1024
+						}
+						stats.Total = tot
+						stats.ExpiryTime = c.ExpiryTime
+						break
+					}
+				}
+			}
+		} else if !statsExist && email != "" {
+			if clients, err := s.inboundService.GetClients(inbound); err == nil {
+				for _, c := range clients {
+					if c.Email == email {
+						stats.Email = c.Email
+						tot := c.TotalGB
+						if tot > 0 && tot < 1024*1024 {
+							tot = tot * 1024 * 1024 * 1024
+						}
+						stats.Total = tot
+						stats.ExpiryTime = c.ExpiryTime
+						stats.Enable = c.Enable
+						statsExist = true
+						break
+					}
+				}
 			}
 		}
 

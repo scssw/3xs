@@ -371,8 +371,8 @@
       <!-- Subscription ID -->
       <a-form-item label="订阅ID (Sub ID)">
         <a-input v-model.trim="formModal.client.subId" placeholder="订阅ID，用于生成 /sub/{subId} 链接">
-          <a-tooltip slot="suffix" title="生成随机SubID">
-            <a-icon type="sync" style="cursor: pointer;" @click="formModal.client.subId = RandomUtil.randomLowerAndNum(16)"></a-icon>
+          <a-tooltip slot="suffix" title="同步为邮箱/生成SubID">
+            <a-icon type="sync" style="cursor: pointer;" @click="syncSubId"></a-icon>
           </a-tooltip>
         </a-input>
       </a-form-item>
@@ -424,8 +424,9 @@
       <!-- Expiry Date -->
       <a-form-item label='{{ i18n "pages.inbounds.expireDate" }}'>
         <a-date-picker v-model="formModal.expiryMoment" show-time format="YYYY-MM-DD HH:mm:ss"
-          :dropdown-class-name="themeSwitcher.currentTheme" placeholder="留空为无限期"></a-date-picker>
-        <a-button size="small" type="link" @click="formModal.expiryMoment = null">清除到期时间</a-button>
+          :dropdown-class-name="themeSwitcher.currentTheme" placeholder="留空为无限期"
+          @change="onExpiryDateChange"></a-date-picker>
+        <a-button size="small" type="link" @click="clearExpiryDate">清除到期时间</a-button>
       </a-form-item>
 
       <!-- IP Limit -->
@@ -629,6 +630,13 @@
         return list;
       },
     },
+    watch: {
+      'formModal.client.email'(newVal, oldVal) {
+        if (!this.formModal.isEdit && (!this.formModal.client.subId || this.formModal.client.subId === oldVal)) {
+          this.formModal.client.subId = newVal;
+        }
+      },
+    },
     mounted() {
       this.fetchDefaultSettings();
       this.fetchData();
@@ -795,7 +803,7 @@
         this.formModal.expiryMoment = moment().add(1, 'month');
         this.formModal.client = {
           email: '',
-          subId: RandomUtil.randomLowerAndNum(16),
+          subId: '',
           id: RandomUtil.randomUUID(),
           password: RandomUtil.randomSeq(12),
           auth: RandomUtil.randomSeq(12),
@@ -841,7 +849,31 @@
         const prefix = host.split('.')[0].toUpperCase();
         const now = moment().format('YYMMDDHHmm');
         const exp = this.formModal.expiryMoment ? `${this.formModal.expiryMoment.month() + 1}.${this.formModal.expiryMoment.date()}` : '0.0';
-        this.formModal.client.email = `${prefix}:${now}-${exp}`;
+        const email = `${prefix}:${now}-${exp}`;
+        const prevEmail = this.formModal.client.email;
+        this.formModal.client.email = email;
+        if (!this.formModal.isEdit || !this.formModal.client.subId || this.formModal.client.subId === prevEmail) {
+          this.formModal.client.subId = email;
+        }
+      },
+      syncSubId() {
+        if (this.formModal.client.email) {
+          this.formModal.client.subId = this.formModal.client.email;
+          this.$message.success('已同步为当前邮箱');
+        } else {
+          this.generateEmail();
+        }
+      },
+      onExpiryDateChange() {
+        if (!this.formModal.isEdit) {
+          this.generateEmail();
+        }
+      },
+      clearExpiryDate() {
+        this.formModal.expiryMoment = null;
+        if (!this.formModal.isEdit) {
+          this.generateEmail();
+        }
       },
       selectTrafficQuick(gb) {
         this.formModal.client.totalGB = gb;

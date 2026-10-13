@@ -304,6 +304,9 @@ func (s *ClientService) AddClient(client *model.Client, inboundIds []int) (bool,
 	}
 
 	if client.SubID == "" {
+		client.SubID = client.Email
+	}
+	if client.SubID == "" {
 		client.SubID = random.Seq(16)
 	}
 	if client.ID == "" {
@@ -467,6 +470,9 @@ func (s *ClientService) UpdateClient(oldEmail string, client *model.Client, targ
 	if newEmail == "" {
 		newEmail = oldEmail
 		client.Email = oldEmail
+	}
+	if client.SubID == "" {
+		client.SubID = newEmail
 	}
 
 	if client.TotalGB > 0 && client.TotalGB < 1024*1024 {

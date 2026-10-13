@@ -227,10 +227,10 @@
                 return new RegExp(`^${escapedBaseTitle}-\\d+$`).test(value);
             },
             applyClientSubscriptionDefault(previousEmail = '', force = false) {
-                if (this.isEdit || !app.subSettings?.enable || !this.client) return;
+                if (this.isEdit || !this.client) return;
                 const title = this.getDefaultSubscriptionTitle();
                 if (!title) return;
-                if (force || this.isGeneratedSubscriptionTitle(this.client.subId) || this.client.subId === previousEmail) {
+                if (force || !this.client.subId || this.isGeneratedSubscriptionTitle(this.client.subId) || this.client.subId === previousEmail) {
                     this.client.subId = title;
                 }
             },
