@@ -42,9 +42,6 @@ var defaultRealityScanCandidatesUSWest = []string{
 var defaultRealityScanCandidatesTokyo = []string{
 	"www.sony.jp:443",
 	"www.nintendo.co.jp:443",
-	"www.rakuten.co.jp:443",
-	"www.u-tokyo.ac.jp:443",
-	"www.ntt.co.jp:443",
 }
 
 var defaultRealityScanCandidates = append(
@@ -144,46 +141,32 @@ func judgeRealityRegion(host string) string {
 	return "us-west"
 }
 
-// filterUsableSANs strips root/apex domains when dialHost is a subdomain (e.g. www.amd.com -> strips amd.com).
+// filterUsableSANs strips root/apex domains and only returns the specific subdomain (e.g. www.amd.com).
 func filterUsableSANs(dnsNames []string, dialHost ...string) []string {
 	var targetSubdomain string
 	var targetApex string
 	if len(dialHost) > 0 {
 		h := strings.ToLower(strings.TrimSpace(dialHost[0]))
-		if strings.HasPrefix(h, "www.") && len(h) > 4 {
+		if h != "" {
 			targetSubdomain = h
-			targetApex = h[4:]
-		}
-	}
-
-	seen := make(map[string]struct{}, len(dnsNames))
-	out := make([]string, 0, len(dnsNames))
-	for _, n := range dnsNames {
-		n = strings.ToLower(strings.TrimSpace(n))
-		if n == "" || strings.HasPrefix(n, "*") {
-			continue
-		}
-		if targetApex != "" && n == targetApex {
-			continue
-		}
-		if _, ok := seen[n]; ok {
-			continue
-		}
-		seen[n] = struct{}{}
-		out = append(out, n)
-	}
-
-	if targetSubdomain != "" {
-		if _, ok := seen[targetSubdomain]; !ok {
-			out = append([]string{targetSubdomain}, out...)
-		} else {
-			idx := slices.Index(out, targetSubdomain)
-			if idx > 0 {
-				out = append([]string{targetSubdomain}, append(out[:idx], out[idx+1:]...)...)
+			if strings.HasPrefix(h, "www.") && len(h) > 4 {
+				targetApex = h[4:]
 			}
 		}
 	}
-	return out
+
+	if targetSubdomain != "" {
+		return []string{targetSubdomain}
+	}
+
+	for _, n := range dnsNames {
+		n = strings.ToLower(strings.TrimSpace(n))
+		if n == "" || strings.HasPrefix(n, "*") || (targetApex != "" && n == targetApex) {
+			continue
+		}
+		return []string{n}
+	}
+	return nil
 }
 
 func parseRealityTarget(raw string) (string, int, error) {

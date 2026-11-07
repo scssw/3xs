@@ -16,10 +16,7 @@ const REALITY_TARGETS_US_WEST = [
 
 const REALITY_TARGETS_TOKYO = [
     { target: 'www.sony.jp:443', sni: 'www.sony.jp', region: 'tokyo', name: 'Sony JP' },
-    { target: 'www.nintendo.co.jp:443', sni: 'www.nintendo.co.jp', region: 'tokyo', name: 'Nintendo JP' },
-    { target: 'www.rakuten.co.jp:443', sni: 'www.rakuten.co.jp', region: 'tokyo', name: 'Rakuten JP' },
-    { target: 'www.u-tokyo.ac.jp:443', sni: 'www.u-tokyo.ac.jp', region: 'tokyo', name: 'Tokyo University' },
-    { target: 'www.ntt.co.jp:443', sni: 'www.ntt.co.jp', region: 'tokyo', name: 'NTT JP' }
+    { target: 'www.nintendo.co.jp:443', sni: 'www.nintendo.co.jp', region: 'tokyo', name: 'Nintendo JP' }
 ];
 
 const REALITY_TARGETS = [
@@ -28,34 +25,28 @@ const REALITY_TARGETS = [
 ];
 
 /**
- * Filter SNIs to only keep subdomains and strip apex/first-level root domains
+ * Filter SNIs to only keep the specific subdomain (e.g. www.amd.com) and strip apex/first-level root domains
  * @param {string|string[]} serverNames 
  * @param {string} dialHost 
- * @returns {string} Comma-separated clean SNIs
+ * @returns {string} Clean single SNI
  */
 function filterCleanSNIs(serverNames, dialHost) {
+    const host = (dialHost || '').split(':')[0].trim().toLowerCase();
+    if (host && !host.startsWith('*')) {
+        return host;
+    }
     const list = Array.isArray(serverNames)
         ? serverNames
         : (serverNames || '').split(',').map(s => s.trim()).filter(Boolean);
-    const host = (dialHost || '').split(':')[0].trim().toLowerCase();
     const apex = host.startsWith('www.') && host.length > 4 ? host.slice(4) : '';
-
-    const cleaned = [];
-    const seen = new Set();
     for (const item of list) {
         const lower = item.toLowerCase().trim();
         if (!lower || lower.startsWith('*') || (apex && lower === apex)) {
             continue;
         }
-        if (!seen.has(lower)) {
-            seen.add(lower);
-            cleaned.push(lower);
-        }
+        return lower;
     }
-    if (host && !seen.has(host) && !host.startsWith('*')) {
-        cleaned.unshift(host);
-    }
-    return cleaned.join(',');
+    return host || '';
 }
 
 /**
