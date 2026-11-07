@@ -12,6 +12,13 @@
             <a-select-option v-for="key in UTLS_FINGERPRINT" :value="key">[[ key ]]</a-select-option>
         </a-select>
     </a-form-item>
+    <a-form-item label='地区分类'>
+        <a-radio-group v-model="realityRegion" @change="onRealityRegionChange" button-style="solid">
+            <a-radio-button value="all">全部</a-radio-button>
+            <a-radio-button value="us-west">美西</a-radio-button>
+            <a-radio-button value="tokyo">东京</a-radio-button>
+        </a-radio-group>
+    </a-form-item>
     <a-form-item>
         <template slot="label">
             <a-tooltip>
@@ -21,7 +28,30 @@
                     type="sync"></a-icon>
             </a-tooltip>
         </template>
-        <a-input v-model.trim="inbound.stream.reality.target"></a-input>
+        <a-input-group compact style="display: flex;">
+            <a-input v-model.trim="inbound.stream.reality.target" style="flex: 1;" placeholder="www.amd.com:443"></a-input>
+            <a-button type="primary" :loading="realityScanning" @click="scanRealityCurrentTarget">
+                扫描
+            </a-button>
+            <a-button @click="openRealityScannerModal">
+                查找目标
+            </a-button>
+            <a-button type="dashed" :loading="realityAutoPicking" @click="autoPickBestRealityCandidate">
+                自动优选
+            </a-button>
+        </a-input-group>
+        <div v-if="realityScanResult" style="margin-top: 6px;">
+            <a-alert :type="realityScanResult.feasible && realityScanResult.h2 ? 'success' : 'warning'" show-icon>
+                <template slot="message">
+                    <span v-if="realityScanResult.feasible && realityScanResult.h2">
+                        <b>[已验证 H2]</b> 延迟: [[ realityScanResult.latencyMs ]]ms | ALPN: [[ realityScanResult.alpn ]] | TLS: [[ realityScanResult.tlsVersion ]]
+                    </span>
+                    <span v-else>
+                        <b>[不可用或未协商 H2]</b> [[ realityScanResult.reason || '不支持 H2 ALPN' ]] (延迟: [[ realityScanResult.latencyMs ]]ms)
+                    </span>
+                </template>
+            </a-alert>
+        </div>
     </a-form-item>
     <a-form-item>
         <template slot="label">
@@ -32,7 +62,7 @@
                     type="sync"></a-icon>
             </a-tooltip>
         </template>
-        <a-input v-model.trim="inbound.stream.reality.serverNames"></a-input>
+        <a-input v-model.trim="inbound.stream.reality.serverNames" placeholder="www.amd.com"></a-input>
     </a-form-item>
     <a-form-item label='Max Time Diff (ms)'>
         <a-input-number v-model.number="inbound.stream.reality.maxTimediff" :min="0"></a-input-number>

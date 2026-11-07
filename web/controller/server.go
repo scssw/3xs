@@ -60,6 +60,8 @@ func (a *ServerController) initRouter(g *gin.RouterGroup) {
 	g.POST("/xraylogs/:count", a.getXrayLogs)
 	g.POST("/importDB", a.importDB)
 	g.POST("/getNewEchCert", a.getNewEchCert)
+	g.POST("/scanRealityTarget", a.scanRealityTarget)
+	g.POST("/scanRealityTargets", a.scanRealityTargets)
 }
 
 // refreshStatus updates the cached server status and collects CPU history.
@@ -360,4 +362,26 @@ func (a *ServerController) getNewmlkem768(c *gin.Context) {
 		return
 	}
 	jsonObj(c, out, nil)
+}
+
+// scanRealityTarget probes the candidate REALITY target with the given sni.
+func (a *ServerController) scanRealityTarget(c *gin.Context) {
+	xver, _ := strconv.Atoi(c.PostForm("xver"))
+	allowPrivate := c.PostForm("allowPrivate") == "true"
+	res, err := a.serverService.ScanRealityTarget(c.PostForm("target"), c.PostForm("sni"), xver, allowPrivate)
+	if err != nil {
+		jsonMsg(c, "Failed to scan reality target: "+err.Error(), err)
+		return
+	}
+	jsonObj(c, res, nil)
+}
+
+// scanRealityTargets probes candidate REALITY targets concurrently.
+func (a *ServerController) scanRealityTargets(c *gin.Context) {
+	res, err := a.serverService.ScanRealityTargets(c.PostForm("targets"))
+	if err != nil {
+		jsonMsg(c, "Failed to scan reality targets: "+err.Error(), err)
+		return
+	}
+	jsonObj(c, res, nil)
 }

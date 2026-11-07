@@ -6,7 +6,7 @@ on:
       tag_name:
         description: 'Release tag name'
         required: false
-        default: 'v2.8.3'
+        default: 'v2.9.0'
   release:
     types: [published]
   push:
@@ -99,13 +99,17 @@ jobs:
           cd ../..
           
       - name: Package
-        run: tar -zcvf x-ui-linux-${{ matrix.platform }}.tar.gz x-ui
+        run: |
+          tar -zcvf x-ui-linux-${{ matrix.platform }}.tar.gz x-ui
+          sha256sum x-ui-linux-${{ matrix.platform }}.tar.gz > x-ui-linux-${{ matrix.platform }}.tar.gz.sha256
 
       - name: Upload files to Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: x-ui-linux-${{ matrix.platform }}
-          path: ./x-ui-linux-${{ matrix.platform }}.tar.gz
+          path: |
+            ./x-ui-linux-${{ matrix.platform }}.tar.gz
+            ./x-ui-linux-${{ matrix.platform }}.tar.gz.sha256
 
       - name: Determine Release Tag
         id: get_tag
@@ -115,7 +119,7 @@ jobs:
           elif [ "${{ github.ref_type }}" = "tag" ]; then
             TAG_NAME="${{ github.ref_name }}"
           else
-            TAG_NAME="v2.8.3"
+            TAG_NAME="v2.9.0"
           fi
           echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
           echo "Release tag: $TAG_NAME"
@@ -126,4 +130,4 @@ jobs:
         run: |
           TAG="${{ steps.get_tag.outputs.tag_name }}"
           gh release view "$TAG" || gh release create "$TAG" --title "$TAG" --notes "Release $TAG"
-          gh release upload "$TAG" "x-ui-linux-${{ matrix.platform }}.tar.gz" --clobber
+          gh release upload "$TAG" x-ui-linux-${{ matrix.platform }}.tar.gz* --clobber

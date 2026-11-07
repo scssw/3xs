@@ -30,13 +30,8 @@ echo "The OS release is: $release"
 arch() {
     case "$(uname -m)" in
         x86_64 | x64 | amd64) echo 'amd64' ;;
-        i*86 | x86) echo '386' ;;
         armv8* | armv8 | arm64 | aarch64) echo 'arm64' ;;
-        armv7* | armv7 | arm) echo 'armv7' ;;
-        armv6* | armv6) echo 'armv6' ;;
-        armv5* | armv5) echo 'armv5' ;;
-        s390x) echo 's390x' ;;
-        *) echo -e "${green}Unsupported CPU architecture! ${plain}" && rm -f install.sh && exit 1 ;;
+        *) echo -e "${red}Unsupported CPU architecture! Only amd64 and arm64 are supported.${plain}" && exit 1 ;;
     esac
 }
 
@@ -45,12 +40,7 @@ echo "Arch: $(arch)"
 xray_asset_arch() {
     case "$(arch)" in
         amd64) echo '64' ;;
-        386) echo '32' ;;
         arm64) echo 'arm64-v8a' ;;
-        armv7) echo 'arm32-v7a' ;;
-        armv6) echo 'arm32-v6' ;;
-        armv5) echo 'arm32-v5' ;;
-        s390x) echo 's390x' ;;
         *) echo '' ;;
     esac
 }

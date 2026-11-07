@@ -110,6 +110,10 @@
             singlePortMultiUser: false,
             storedInboundTotalGB: null,
             storedInboundExpiryTime: null,
+            realityRegion: 'all',
+            realityScanning: false,
+            realityAutoPicking: false,
+            realityScanResult: null,
             protocolOptions: [
                 Protocols.VMESS,
                 Protocols.VLESS,
@@ -177,6 +181,11 @@
                 this.applyInboundDefaults();
                 const stored = localStorage.getItem(SINGLE_PORT_MULTI_USER_STORAGE_KEY);
                 this.singlePortMultiUser = stored === 'true';
+                if (this.inbound && this.inbound.stream && this.inbound.stream.security === 'reality') {
+                    this.$nextTick(() => {
+                        this.autoPickBestRealityCandidate();
+                    });
+                }
             },
             singlePortMultiUser(newVal, oldVal) {
                 if (this.isEdit) return;
@@ -236,6 +245,11 @@
                 if (inModal.inbound.protocol != Protocols.VLESS) return;
                 if (newVal === 'reality' && inModal.inbound.canEnableTlsFlow()) {
                     this.applyRealityFlowDefault();
+                    if (!this.isEdit && (!this.inbound.stream.reality.target || this.inbound.stream.reality.target === '')) {
+                        this.$nextTick(() => {
+                            this.autoPickBestRealityCandidate();
+                        });
+                    }
                     return;
                 }
                 if (!inModal.inbound.canEnableTlsFlow() || oldVal === 'reality') {
@@ -377,6 +391,11 @@
                 if (this.inbound && this.inbound.canEnableReality && this.inbound.canEnableReality()) {
                     this.inbound.stream.security = 'reality';
                     this.applyRealityFlowDefault();
+                    if (!this.isEdit && (!this.inbound.stream.reality.target || this.inbound.stream.reality.target === '')) {
+                        this.$nextTick(() => {
+                            this.autoPickBestRealityCandidate();
+                        });
+                    }
                     this.$nextTick(() => {
                         if (this.inbound.stream.security === 'reality') {
                             this.getNewX25519Cert();
@@ -433,6 +452,11 @@
                     });
                 } else if (this.inModal.inbound.protocol == Protocols.VLESS && this.inModal.inbound.stream.isReality) {
                     this.applyRealityFlowDefault();
+                    if (!this.isEdit && (!this.inbound.stream.reality.target || this.inbound.stream.reality.target === '')) {
+                        this.$nextTick(() => {
+                            this.autoPickBestRealityCandidate();
+                        });
+                    }
                 }
             },
             SSMethodChange() {
@@ -491,6 +515,83 @@
             clearMldsa65() {
                 this.inbound.stream.reality.mldsa65Seed = '';
                 this.inbound.stream.reality.settings.mldsa65Verify = '';
+            },
+            onRealityRegionChange(e) {
+                const val = (e && e.target) ? e.target.value : e;
+                this.realityRegion = val || 'all';
+                this.autoPickBestRealityCandidate();
+            },
+            openRealityScannerModal() {
+                if (typeof realityScannerModal !== 'undefined') {
+                    realityScannerModal.show(this.realityRegion || 'all');
+                }
+            },
+            async scanRealityCurrentTarget() {
+                const target = this.inbound.stream.reality.target;
+                if (!target) {
+                    app.$message.warning('请先输入 Target 目标地址');
+                    return;
+                }
+                const sni = (this.inbound.stream.reality.serverNames || '').split(',')[0].trim() || target.split(':')[0];
+                const xver = this.inbound.stream.reality.xver || 0;
+                this.realityScanning = true;
+                try {
+                    const res = await HttpUtil.post('/panel/api/server/scanRealityTarget', { target, sni, xver });
+                    if (res.success && res.obj) {
+                        this.realityScanResult = res.obj;
+                        if (res.obj.serverNames && res.obj.serverNames.length > 0) {
+                            this.inbound.stream.reality.serverNames = filterCleanSNIs(res.obj.serverNames, target);
+                        }
+                        if (res.obj.feasible && res.obj.h2) {
+                            app.$message.success(`目标可用！已验证支持 H2 ALPN 协商，延迟: ${res.obj.latencyMs}ms`);
+                        } else {
+                            app.$message.warning(`扫描完成: ${res.obj.reason || '无法协商 H2'}`);
+                        }
+                    } else {
+                        app.$message.error(res.msg || '扫描目标失败');
+                    }
+                } catch (e) {
+                    app.$message.error('扫描请求异常: ' + e);
+                } finally {
+                    this.realityScanning = false;
+                }
+            },
+            async autoPickBestRealityCandidate() {
+                this.realityAutoPicking = true;
+                const region = this.realityRegion || 'all';
+                try {
+                    const res = await HttpUtil.post('/panel/api/server/scanRealityTargets', { targets: region });
+                    if (res.success && Array.isArray(res.obj) && res.obj.length > 0) {
+                        const best = res.obj.find(c => c.feasible && c.h2 && c.tls13) ||
+                                     res.obj.find(c => c.feasible && c.h2) ||
+                                     res.obj.find(c => c.feasible) ||
+                                     res.obj[0];
+                        if (best) {
+                            this.inbound.stream.reality.target = best.target;
+                            this.inbound.stream.reality.serverNames = filterCleanSNIs(best.serverNames, best.target);
+                            this.realityScanResult = best;
+                            if (best.region) {
+                                this.realityRegion = best.region;
+                            }
+                            app.$message.success(`已自动优选延迟最低目标: ${best.target} (${best.latencyMs}ms, H2 支持)`);
+                            return;
+                        }
+                    }
+                    const fallback = getRandomRealityTarget(region);
+                    if (fallback) {
+                        this.inbound.stream.reality.target = fallback.target;
+                        this.inbound.stream.reality.serverNames = filterCleanSNIs(fallback.sni, fallback.target);
+                    }
+                } catch (e) {
+                    console.error('autoPickBestRealityCandidate error:', e);
+                    const fallback = getRandomRealityTarget(region);
+                    if (fallback) {
+                        this.inbound.stream.reality.target = fallback.target;
+                        this.inbound.stream.reality.serverNames = filterCleanSNIs(fallback.sni, fallback.target);
+                    }
+                } finally {
+                    this.realityAutoPicking = false;
+                }
             },
             randomizeRealityTarget() {
                 if (typeof getRandomRealityTarget !== 'undefined') {
