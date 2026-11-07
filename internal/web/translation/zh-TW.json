@@ -778,7 +778,15 @@
         "autoSystemWfpBlockLeakTooltip": "僅限 Windows，需搭配自動系統路由：dns 讓 DNS（連接埠 53、853 及 DNS Client 服務）只走 TUN，需設定 DNS 伺服器；windnsclient 只針對該服務；其他連接埠請輸入 tcp/連接埠 或 udp/連接埠；misconfigtun 阻止沒有任何路由指向 TUN 的 IP 版本。",
         "maxVersion": "最高版本",
         "headerName": "標頭名稱",
-        "headerValue": "標頭值"
+        "headerValue": "標頭值",
+        "realityRegion": "地區分類",
+        "realityCategoryAll": "全部",
+        "realityCategoryUSWest": "美西",
+        "realityCategoryTokyo": "東京",
+        "realityAutoSelect": "自動優選",
+        "realityAutoSelectSuccess": "已優選最低延遲目標：{target} ({latency} ms)",
+        "realityAutoSelectFailed": "未找到支援 H2 的可用 REALITY 目標",
+        "realityH2Support": "支援 H2"
       },
       "info": {
         "mode": "模式",

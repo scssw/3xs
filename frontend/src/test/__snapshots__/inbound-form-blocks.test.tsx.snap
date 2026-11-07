@@ -5,6 +5,7 @@ exports[`inbound security forms > RealityForm field structure is stable 1`] = `
   "Show",
   "Xver",
   "uTLS",
+  "Region",
   "Target",
   "SNI",
   "Max Time Diff (ms)",

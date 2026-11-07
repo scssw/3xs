@@ -344,6 +344,7 @@ export default function InboundFormModal({
     (security === 'tls' || security === 'reality');
 
   const {
+    autoPickBestRealityCandidate,
     genRealityKeypair,
     clearRealityKeypair,
     genMldsa65,
@@ -502,8 +503,22 @@ export default function InboundFormModal({
       loadFallbacks(null);
     }
 
+    if (mode !== 'edit' && initial.streamSettings?.security === 'reality') {
+      void autoPickBestRealityCandidate('all');
+    }
+
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, [open, mode, dbInbound, methods]);
+
+  useEffect(() => {
+    if (open && mode !== 'edit' && security === 'reality') {
+      const currentTarget = (getV('streamSettings.realitySettings.target') as string) || '';
+      if (!currentTarget.trim()) {
+        void autoPickBestRealityCandidate('all');
+      }
+    }
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [open, mode, security]);
 
   useEffect(() => {
     if (!open) return;
@@ -1106,6 +1121,7 @@ export default function InboundFormModal({
           scanRealityTarget={scanRealityTarget}
           scanRealityCandidates={scanRealityCandidates}
           applyRealityScanResult={applyRealityScanResult}
+          autoPickBestRealityCandidate={autoPickBestRealityCandidate}
           randomizeShortIds={randomizeShortIds}
           randomizeSpiderX={randomizeSpiderX}
           genRealityKeypair={genRealityKeypair}

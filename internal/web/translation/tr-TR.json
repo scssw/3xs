@@ -778,7 +778,15 @@
         "autoSystemWfpBlockLeakTooltip": "Yalnızca Windows, Auto system routes ile: dns, DNS'i (53 ve 853 portları ile DNS İstemcisi hizmeti) TUN içinde tutar ve DNS sunucuları gerekir; windnsclient yalnızca o hizmeti kapsar; başka bir port için tcp/PORT veya udp/PORT yazın; misconfigtun, hiçbir rotanın TUN'a göndermediği IP sürümünü engeller.",
         "maxVersion": "Maksimum sürüm",
         "headerName": "Başlık adı",
-        "headerValue": "Başlık değeri"
+        "headerValue": "Başlık değeri",
+        "realityRegion": "Bölge",
+        "realityCategoryAll": "Tümü",
+        "realityCategoryUSWest": "Batı ABD",
+        "realityCategoryTokyo": "Tokyo",
+        "realityAutoSelect": "Otomatik Seç",
+        "realityAutoSelectSuccess": "En düşük gecikmeli hedef seçildi: {target} ({latency} ms)",
+        "realityAutoSelectFailed": "H2 desteğine sahip uygun REALITY hedefi bulunamadı",
+        "realityH2Support": "H2 Desteği"
       },
       "info": {
         "mode": "Mod",

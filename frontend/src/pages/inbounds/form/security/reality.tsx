@@ -11,11 +11,17 @@ import {
   Form,
   Input,
   InputNumber,
+  Segmented,
   Select,
   Space,
   Switch,
 } from 'antd';
-import { RadarChartOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons';
+import {
+  RadarChartOutlined,
+  ReloadOutlined,
+  SearchOutlined,
+  ThunderboltOutlined,
+} from '@ant-design/icons';
 import dayjs from 'dayjs';
 
 import { selectTagRender } from '@/components/form';
@@ -27,6 +33,7 @@ import {
   validateRealityTarget,
 } from '@/lib/xray/stream-wire-normalize';
 import type { RealityScanResult } from '@/generated/types';
+import type { RealityRegionCategory } from '@/lib/xray/reality-targets';
 import RealityTargetScannerModal, {
   MLDSA65_MIN_CERT_CHAIN_BYTES,
 } from './RealityTargetScannerModal';
@@ -38,6 +45,9 @@ interface RealityFormProps {
   scanRealityTarget: (allowPrivate?: boolean) => void;
   scanRealityCandidates: (targets?: string) => Promise<RealityScanResult[]>;
   applyRealityScanResult: (result: RealityScanResult, replaceServerNames?: boolean) => void;
+  autoPickBestRealityCandidate?: (
+    region?: RealityRegionCategory,
+  ) => Promise<RealityScanResult | null>;
   randomizeShortIds: () => void;
   randomizeSpiderX: () => void;
   genRealityKeypair: () => void;
@@ -53,6 +63,7 @@ export default function RealityForm({
   scanRealityTarget,
   scanRealityCandidates,
   applyRealityScanResult,
+  autoPickBestRealityCandidate,
   randomizeShortIds,
   randomizeSpiderX,
   genRealityKeypair,
@@ -64,6 +75,7 @@ export default function RealityForm({
   const uid = useId();
   const { getFieldState, trigger } = useFormContext();
   const [scannerOpen, setScannerOpen] = useState(false);
+  const [region, setRegion] = useState<RealityRegionCategory>('all');
   const mldsa65Seed = useWatch({ name: 'streamSettings.realitySettings.mldsa65Seed' });
   const mldsa65Verify = useWatch({
     name: 'streamSettings.realitySettings.settings.mldsa65Verify',
@@ -117,6 +129,22 @@ export default function RealityForm({
           options={Object.values(UTLS_FINGERPRINT).map((fp) => ({ value: fp, label: fp }))}
         />
       </FormField>
+      <Form.Item label={t('pages.inbounds.form.realityRegion')}>
+        <Segmented<RealityRegionCategory>
+          value={region}
+          onChange={(val) => {
+            setRegion(val);
+            if (autoPickBestRealityCandidate) {
+              void autoPickBestRealityCandidate(val);
+            }
+          }}
+          options={[
+            { label: t('pages.inbounds.form.realityCategoryAll'), value: 'all' },
+            { label: t('pages.inbounds.form.realityCategoryUSWest'), value: 'us-west' },
+            { label: t('pages.inbounds.form.realityCategoryTokyo'), value: 'tokyo' },
+          ]}
+        />
+      </Form.Item>
       <Form.Item
         htmlFor={`${uid}-target`}
         label={t('pages.inbounds.form.target')}
@@ -137,9 +165,19 @@ export default function RealityForm({
               id={`${uid}-target`}
               aria-describedby={`${uid}-target-hint`}
               style={{ flex: 1 }}
-              placeholder="example.com:443"
+              placeholder="www.amd.com:443"
             />
           </FormField>
+          {autoPickBestRealityCandidate && (
+            <Button
+              type="primary"
+              icon={<ThunderboltOutlined aria-hidden />}
+              loading={scanning}
+              onClick={() => autoPickBestRealityCandidate(region)}
+            >
+              {t('pages.inbounds.form.realityAutoSelect')}
+            </Button>
+          )}
           <Button
             icon={<RadarChartOutlined aria-hidden />}
             loading={scanning}
@@ -187,7 +225,15 @@ export default function RealityForm({
                     {scanResult.host || '—'}
                   </Descriptions.Item>
                   <Descriptions.Item label="TLS">{scanResult.tlsVersion || '—'}</Descriptions.Item>
-                  <Descriptions.Item label="ALPN">{scanResult.alpn || '—'}</Descriptions.Item>
+                  <Descriptions.Item label="ALPN / HTTP/2">
+                    {scanResult.h2 ? (
+                      <span style={{ color: '#52c41a', fontWeight: 600 }}>
+                        {scanResult.alpn || 'h2'} ({t('pages.inbounds.form.realityH2Support')})
+                      </span>
+                    ) : (
+                      <span>{scanResult.alpn || '—'}</span>
+                    )}
+                  </Descriptions.Item>
                   <Descriptions.Item label={t('pages.inbounds.form.scanCurve')}>
                     {scanResult.curveID || '—'}
                   </Descriptions.Item>

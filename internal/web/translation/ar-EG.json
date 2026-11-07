@@ -778,7 +778,15 @@
         "autoSystemWfpBlockLeakTooltip": "على ويندوز بس، مع Auto system routes: ‏dns بيخلّي DNS (البورتات 53 و853 وخدمة DNS Client) جوّه الـTUN ومحتاج سيرفرات DNS؛ ‏windnsclient بيغطي الخدمة دي بس؛ اكتب tcp/PORT أو udp/PORT لأي بورت تاني؛ وmisconfigtun بيمنع نسخة IP مفيش مسار بيوديها للـTUN.",
         "maxVersion": "الحد الأقصى للإصدار",
         "headerName": "اسم الترويسة",
-        "headerValue": "قيمة الترويسة"
+        "headerValue": "قيمة الترويسة",
+        "realityRegion": "المنطقة",
+        "realityCategoryAll": "الكل",
+        "realityCategoryUSWest": "غرب الولايات المتحدة",
+        "realityCategoryTokyo": "طوكيو",
+        "realityAutoSelect": "اختيار تلقائي",
+        "realityAutoSelectSuccess": "تم اختيار الهدف الأقل زمن انتقال: {target} ({latency} ms)",
+        "realityAutoSelectFailed": "لم يتم العثور على هدف REALITY مناسب يدعم H2",
+        "realityH2Support": "يدعم H2"
       },
       "info": {
         "mode": "الوضع",

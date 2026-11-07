@@ -46,6 +46,18 @@ func TestFilterUsableSANs(t *testing.T) {
 			t.Errorf("filterUsableSANs[%d] = %q, want %q", i, got[i], want[i])
 		}
 	}
+
+	// Strips apex domain when dialHost is a subdomain.
+	gotWithHost := filterUsableSANs([]string{"amd.com", "www.amd.com", "other.amd.com"}, "www.amd.com")
+	wantWithHost := []string{"www.amd.com", "other.amd.com"}
+	if len(gotWithHost) != len(wantWithHost) {
+		t.Fatalf("filterUsableSANs with host = %v, want %v", gotWithHost, wantWithHost)
+	}
+	for i := range wantWithHost {
+		if gotWithHost[i] != wantWithHost[i] {
+			t.Errorf("filterUsableSANs with host[%d] = %q, want %q", i, gotWithHost[i], wantWithHost[i])
+		}
+	}
 }
 
 func TestSplitRealityTarget(t *testing.T) {

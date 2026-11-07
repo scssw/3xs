@@ -778,7 +778,15 @@
         "autoSystemWfpBlockLeakTooltip": "Chỉ Windows, cùng với Auto system routes: dns giữ DNS (cổng 53 và 853 và dịch vụ DNS Client) bên trong TUN và cần máy chủ DNS; windnsclient chỉ áp dụng cho dịch vụ đó; nhập tcp/CỔNG hoặc udp/CỔNG cho cổng khác; misconfigtun chặn phiên bản IP mà không tuyến nào đưa vào TUN.",
         "maxVersion": "Phiên bản tối đa",
         "headerName": "Tên header",
-        "headerValue": "Giá trị header"
+        "headerValue": "Giá trị header",
+        "realityRegion": "Khu vực",
+        "realityCategoryAll": "Tất cả",
+        "realityCategoryUSWest": "Tây Hoa Kỳ",
+        "realityCategoryTokyo": "Tokyo",
+        "realityAutoSelect": "Tự động chọn",
+        "realityAutoSelectSuccess": "Đã chọn mục tiêu có độ trễ thấp nhất: {target} ({latency} ms)",
+        "realityAutoSelectFailed": "Không tìm thấy mục tiêu REALITY phù hợp hỗ trợ H2",
+        "realityH2Support": "Hỗ trợ H2"
       },
       "info": {
         "mode": "Chế độ",

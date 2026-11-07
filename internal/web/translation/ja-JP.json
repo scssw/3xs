@@ -778,7 +778,15 @@
         "autoSystemWfpBlockLeakTooltip": "Windows のみ（自動システムルートと併用）：dns は DNS（ポート 53・853 と DNS Client サービス）を TUN 内に留め、DNS サーバーが必要です。windnsclient はそのサービスのみを対象にします。その他のポートは tcp/ポート または udp/ポート と入力します。misconfigtun は TUN へのルートがない IP バージョンを遮断します。",
         "maxVersion": "最大バージョン",
         "headerName": "ヘッダー名",
-        "headerValue": "ヘッダー値"
+        "headerValue": "ヘッダー値",
+        "realityRegion": "地域",
+        "realityCategoryAll": "すべて",
+        "realityCategoryUSWest": "米西海岸",
+        "realityCategoryTokyo": "東京",
+        "realityAutoSelect": "自動選択",
+        "realityAutoSelectSuccess": "最低レイテンシのターゲットを選択しました: {target} ({latency} ms)",
+        "realityAutoSelectFailed": "H2 をサポートする適切な REALITY ターゲットが見つかりませんでした",
+        "realityH2Support": "H2 対応"
       },
       "info": {
         "mode": "モード",

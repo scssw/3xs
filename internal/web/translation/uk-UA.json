@@ -778,7 +778,15 @@
         "autoSystemWfpBlockLeakTooltip": "Лише Windows, разом з авто-маршрутами системи: dns утримує DNS (порти 53 і 853 та службу DNS-клієнта) усередині TUN, потрібні DNS-сервери; windnsclient охоплює лише цю службу; для будь-якого іншого порту введіть tcp/ПОРТ або udp/ПОРТ; misconfigtun блокує версію IP, яку жоден маршрут не веде в TUN.",
         "maxVersion": "Максимальна версія",
         "headerName": "Назва заголовка",
-        "headerValue": "Значення заголовка"
+        "headerValue": "Значення заголовка",
+        "realityRegion": "Регіон",
+        "realityCategoryAll": "Усі",
+        "realityCategoryUSWest": "Захід США",
+        "realityCategoryTokyo": "Токіо",
+        "realityAutoSelect": "Авто-вибір",
+        "realityAutoSelectSuccess": "Обрано ціль з найменшою затримкою: {target} ({latency} мс)",
+        "realityAutoSelectFailed": "Не знайдено відповідних цілей REALITY з підтримкою H2",
+        "realityH2Support": "Підтримка H2"
       },
       "info": {
         "mode": "Режим",

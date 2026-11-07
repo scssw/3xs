@@ -778,7 +778,15 @@
         "autoSystemWfpBlockLeakTooltip": "فقط ویندوز، همراه با مسیریابی خودکار سیستم: dns ترافیک DNS (پورت‌های ۵۳ و ۸۵۳ و سرویس DNS Client) را داخل TUN نگه می‌دارد و به سرور DNS نیاز دارد؛ windnsclient فقط همان سرویس را پوشش می‌دهد؛ برای هر پورت دیگر tcp/PORT یا udp/PORT بنویسید؛ misconfigtun نسخه‌ای از IP را که هیچ مسیری به TUN نمی‌فرستد مسدود می‌کند.",
         "maxVersion": "حداکثر نسخه",
         "headerName": "نام هدر",
-        "headerValue": "مقدار هدر"
+        "headerValue": "مقدار هدر",
+        "realityRegion": "منطقه",
+        "realityCategoryAll": "همه",
+        "realityCategoryUSWest": "غرب آمریکا",
+        "realityCategoryTokyo": "توکیو",
+        "realityAutoSelect": "انتخاب خودکار",
+        "realityAutoSelectSuccess": "هدف با کمترین تأخیر انتخاب شد: {target} ({latency} ms)",
+        "realityAutoSelectFailed": "هیچ هدف مناسب REALITY با پشتیبانی H2 پیدا نشد",
+        "realityH2Support": "پشتیبانی از H2"
       },
       "info": {
         "mode": "حالت",

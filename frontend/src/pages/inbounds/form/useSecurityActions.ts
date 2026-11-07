@@ -6,6 +6,11 @@ import type { HookAPI as ModalHookAPI } from 'antd/es/modal/useModal';
 
 import { HttpUtil, RandomUtil } from '@/utils';
 import { createTlsSettingsWithDefaultCert } from '@/lib/xray/inbound-tls-defaults';
+import {
+  filterCleanSNIs,
+  getTargetsCSVByRegion,
+  type RealityRegionCategory,
+} from '@/lib/xray/reality-targets';
 import { RealityStreamSettingsSchema } from '@/schemas/protocols/security/reality';
 import type { InboundFormValues } from '@/schemas/forms/inbound-form';
 import type { RealityScanResult } from '@/generated/types';
@@ -89,15 +94,62 @@ export function useSecurityActions({
   const applyRealityScanResult = (r: RealityScanResult, replaceServerNames = false) => {
     setScanResult(r);
     setValue('streamSettings.realitySettings.target', r.target);
+    const targetHost = r.target.replace(/:\d+$/, '').trim();
+    const cleanHost = r.host || targetHost;
+    const cleanNames = filterCleanSNIs(r.serverNames, cleanHost);
     /*
      * Names off an untrusted chain are not usable as SNI; names off a trusted
-     * one are, even when the SNI sent did not match them, which is how a stale
-     * SNI recovers instead of failing every rescan.
+     * one are, even when the SNI sent did not match them.
      */
     if (replaceServerNames) {
-      setValue('streamSettings.realitySettings.serverNames', r.serverNames ?? []);
-    } else if ((r.certValid || r.certChainValid) && r.serverNames?.length) {
-      setValue('streamSettings.realitySettings.serverNames', r.serverNames);
+      setValue('streamSettings.realitySettings.serverNames', cleanNames);
+    } else if ((r.certValid || r.certChainValid) && cleanNames.length > 0) {
+      setValue('streamSettings.realitySettings.serverNames', cleanNames);
+    }
+  };
+
+  const autoPickBestRealityCandidate = async (
+    region: RealityRegionCategory = 'all',
+  ): Promise<RealityScanResult | null> => {
+    setScanning(true);
+    try {
+      const targetsCSV = getTargetsCSVByRegion(region);
+      const results = await scanRealityCandidates(targetsCSV);
+      const candidates = results.filter(
+        (r) => r.feasible && r.h2 && r.tls13 && r.latencyMs > 0 && !r.privateTarget,
+      );
+      if (candidates.length === 0) {
+        const feasible = results.filter((r) => r.feasible && !r.privateTarget);
+        if (feasible.length > 0) {
+          feasible.sort((a, b) => (a.latencyMs || 9999) - (b.latencyMs || 9999));
+          const best = feasible[0];
+          applyRealityScanResult(best, true);
+          messageApi.success(
+            t('pages.inbounds.form.realityAutoSelectSuccess', {
+              target: best.host || best.target,
+              latency: best.latencyMs,
+            }),
+          );
+          return best;
+        }
+        messageApi.warning(t('pages.inbounds.form.realityAutoSelectFailed'));
+        return null;
+      }
+      candidates.sort((a, b) => a.latencyMs - b.latencyMs);
+      const best = candidates[0];
+      applyRealityScanResult(best, true);
+      messageApi.success(
+        t('pages.inbounds.form.realityAutoSelectSuccess', {
+          target: best.host || best.target,
+          latency: best.latencyMs,
+        }),
+      );
+      return best;
+    } catch {
+      messageApi.error(t('pages.inbounds.form.realityAutoSelectFailed'));
+      return null;
+    } finally {
+      setScanning(false);
     }
   };
 
@@ -370,10 +422,12 @@ export function useSecurityActions({
       } catch {
         /* best-effort: leave keypair fields empty if server call fails */
       }
+      void autoPickBestRealityCandidate('all');
     }
   };
 
   return {
+    autoPickBestRealityCandidate,
     genRealityKeypair,
     clearRealityKeypair,
     genMldsa65,

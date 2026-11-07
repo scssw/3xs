@@ -26,18 +26,33 @@ const (
 	realityScanMaxTotal    = 512
 )
 
-var defaultRealityScanCandidates = []string{
-	"www.cloudflare.com:443",
-	"www.microsoft.com:443",
-	"www.amazon.com:443",
-	"aws.amazon.com:443",
-	"www.samsung.com:443",
-	"www.nvidia.com:443",
+var defaultRealityScanCandidatesUSWest = []string{
 	"www.amd.com:443",
+	"www.nvidia.com:443",
 	"www.intel.com:443",
-	"www.sony.com:443",
-	"dl.google.com:443",
+	"www.oracle.com:443",
+	"www.cisco.com:443",
+	"www.tesla.com:443",
+	"www.amazon.com:443",
+	"www.ebay.com:443",
+	"www.paypal.com:443",
+	"www.adobe.com:443",
+	"addons.mozilla.org:443",
+	"www.stanford.edu:443",
 }
+
+var defaultRealityScanCandidatesTokyo = []string{
+	"www.sony.jp:443",
+	"www.nintendo.co.jp:443",
+	"www.rakuten.co.jp:443",
+	"www.u-tokyo.ac.jp:443",
+	"www.ntt.co.jp:443",
+}
+
+var defaultRealityScanCandidates = append(
+	append([]string(nil), defaultRealityScanCandidatesUSWest...),
+	defaultRealityScanCandidatesTokyo...,
+)
 
 // DefaultRealityScanCandidatesCSV is the shipped default for the
 // realityScanCandidates setting (comma-separated host:port list).
@@ -115,11 +130,19 @@ func realityCurveName(id tls.CurveID) string {
 	}
 }
 
-func filterUsableSANs(dnsNames []string) []string {
+func filterUsableSANs(dnsNames []string, dialHost ...string) []string {
+	targetHost := ""
+	if len(dialHost) > 0 {
+		targetHost = strings.ToLower(strings.TrimSpace(dialHost[0]))
+	}
 	out := make([]string, 0, len(dnsNames))
 	for _, n := range dnsNames {
-		n = strings.TrimSpace(n)
+		n = strings.ToLower(strings.TrimSpace(n))
 		if n == "" || strings.HasPrefix(n, "*.") {
+			continue
+		}
+		// Strip apex domains if targetHost is a subdomain (e.g. drop amd.com for www.amd.com).
+		if targetHost != "" && n != targetHost && strings.HasSuffix(targetHost, "."+n) {
 			continue
 		}
 		out = append(out, n)
@@ -273,7 +296,6 @@ func (s *ServerService) probeRealityAddr(dialHost string, port int, sni string, 
 			res.CertIssuer = leaf.Issuer.CommonName
 		}
 		res.NotAfter = leaf.NotAfter.UTC().Format(time.RFC3339)
-		res.ServerNames = filterUsableSANs(leaf.DNSNames)
 
 		if sni == "" {
 			if discovered := firstUsableName(leaf); discovered != "" {
@@ -281,6 +303,11 @@ func (s *ServerService) probeRealityAddr(dialHost string, port int, sni string, 
 				res.Target = net.JoinHostPort(discovered, strconv.Itoa(port))
 				verifyHost = discovered
 			}
+		}
+
+		res.ServerNames = filterUsableSANs(leaf.DNSNames, res.Host)
+		if res.Host != "" && !slices.Contains(res.ServerNames, res.Host) {
+			res.ServerNames = append([]string{res.Host}, res.ServerNames...)
 		}
 
 		if verifyHost != "" {

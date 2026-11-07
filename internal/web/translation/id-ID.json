@@ -778,7 +778,15 @@
         "autoSystemWfpBlockLeakTooltip": "Khusus Windows, bersama Auto system routes: dns menjaga DNS (port 53 dan 853 serta layanan DNS Client) tetap di dalam TUN dan butuh server DNS; windnsclient hanya mencakup layanan itu; ketik tcp/PORT atau udp/PORT untuk port lain; misconfigtun memblokir versi IP yang tidak dikirim rute mana pun ke TUN.",
         "maxVersion": "Versi maksimum",
         "headerName": "Nama header",
-        "headerValue": "Nilai header"
+        "headerValue": "Nilai header",
+        "realityRegion": "Wilayah",
+        "realityCategoryAll": "Semua",
+        "realityCategoryUSWest": "AS Barat",
+        "realityCategoryTokyo": "Tokyo",
+        "realityAutoSelect": "Pilih Otomatis",
+        "realityAutoSelectSuccess": "Target dengan latensi terendah dipilih: {target} ({latency} ms)",
+        "realityAutoSelectFailed": "Tidak ada target REALITY yang cocok dengan dukungan H2",
+        "realityH2Support": "Mendukung H2"
       },
       "info": {
         "mode": "Mode",

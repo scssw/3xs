@@ -11,7 +11,7 @@ export class AllSetting {
   sessionMaxAge = 360;
   trustedProxyCIDRs = '127.0.0.1/32,::1/128';
   realityScanCandidates =
-    'www.cloudflare.com:443,www.microsoft.com:443,www.amazon.com:443,aws.amazon.com:443,www.samsung.com:443,www.nvidia.com:443,www.amd.com:443,www.intel.com:443,www.sony.com:443,dl.google.com:443';
+    'www.amd.com:443,www.nvidia.com:443,www.intel.com:443,www.oracle.com:443,www.cisco.com:443,www.tesla.com:443,www.amazon.com:443,www.ebay.com:443,www.paypal.com:443,www.adobe.com:443,addons.mozilla.org:443,www.stanford.edu:443,www.sony.jp:443,www.nintendo.co.jp:443,www.rakuten.co.jp:443,www.u-tokyo.ac.jp:443,www.ntt.co.jp:443';
   ipLimitAllowlist = '';
   panelOutbound = '';
   pageSize = 25;

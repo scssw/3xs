@@ -778,7 +778,15 @@
         "autoSystemWfpBlockLeakTooltip": "Solo Windows, con Auto system routes: dns mantiene el DNS (puertos 53 y 853 y el servicio Cliente DNS) dentro del TUN y necesita servidores DNS; windnsclient cubre solo ese servicio; escribe tcp/PUERTO o udp/PUERTO para cualquier otro puerto; misconfigtun bloquea una versión de IP que ninguna ruta envía al TUN.",
         "maxVersion": "Versión máxima",
         "headerName": "Nombre de cabecera",
-        "headerValue": "Valor de cabecera"
+        "headerValue": "Valor de cabecera",
+        "realityRegion": "Región",
+        "realityCategoryAll": "Todos",
+        "realityCategoryUSWest": "Oeste de EE. UU.",
+        "realityCategoryTokyo": "Tokio",
+        "realityAutoSelect": "Selección automática",
+        "realityAutoSelectSuccess": "Objetivo de menor latencia seleccionado: {target} ({latency} ms)",
+        "realityAutoSelectFailed": "No se encontraron objetivos REALITY adecuados compatibles con H2",
+        "realityH2Support": "Compatible con H2"
       },
       "info": {
         "mode": "Modo",
